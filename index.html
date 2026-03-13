@@ -1,0 +1,3959 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daffodil Salon — Beauty, Care & Confidence</title>
+  <meta name="description" content="Daffodil Salon — Premium beauty services. Book appointments, pay via UPI, and manage everything with an admin dashboard (LocalStorage)." />
+
+  <!--
+    SINGLE-FILE APP (No backend)
+    - Customer booking + Admin dashboard
+    - Stores everything in LocalStorage
+    - Premium UI theme (maroon + rose gold + beige)
+  -->
+
+  <style>
+    /* =========================
+       THEME (Luxury Salon)
+    ========================== */
+    :root{
+      --bg: #f6efe8;              /* soft beige */
+      --card: #ffffff;
+      --ink: #1f1a1a;             /* elegant dark text */
+      --muted: rgba(31,26,26,.68);
+
+      --maroon: #4a1020;          /* deep maroon */
+      --maroon-2: #2d0b13;
+      --rose: #cfa37a;            /* rose gold */
+      --rose-2: #e7c8ab;
+      --line: rgba(0,0,0,.08);
+
+      --ok: #0e7a46;
+      --warn: #b45309;
+      --bad: #b42318;
+
+      --shadow: 0 18px 45px rgba(23,16,18,.10);
+      --shadow-2: 0 10px 25px rgba(23,16,18,.10);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--ink);
+      background: radial-gradient(1200px 700px at 10% -10%, rgba(207,163,122,.18), transparent 60%),
+                  radial-gradient(900px 600px at 110% 20%, rgba(74,16,32,.10), transparent 60%),
+                  var(--bg);
+      overflow-x: hidden;
+    }
+
+    a{ color: inherit; text-decoration: none; }
+    button, input, select, textarea { font: inherit; }
+    img { max-width:100%; display:block; }
+
+    /* =========================
+       LOADER
+    ========================== */
+    .loader{
+      position: fixed; inset:0; z-index: 9999;
+      display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(180deg, rgba(45,11,19,.92), rgba(74,16,32,.88));
+      color: #fff;
+      transition: opacity .35s ease, visibility .35s ease;
+    }
+    .loader.hide{ opacity:0; visibility:hidden; }
+    .loader-card{
+      width:min(560px, 92vw);
+      padding:24px 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 22px 70px rgba(0,0,0,.30);
+      backdrop-filter: blur(10px);
+    }
+    .brandline{
+      display:flex; gap:12px; align-items:center;
+      letter-spacing:.3px;
+    }
+    .gem{
+      width:44px; height:44px; border-radius: 14px;
+      background: radial-gradient(circle at 30% 30%, rgba(231,200,171,.95), rgba(207,163,122,.55)),
+                  linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.25);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .loader-title{
+      font-size: 16px; font-weight: 650;
+    }
+    .loader-sub{ color: rgba(255,255,255,.82); font-size: 13px; margin-top: 4px; }
+    .progress{
+      margin-top:16px; height:10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.18);
+    }
+    .bar{
+      height:100%;
+      width: 30%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(231,200,171,.95), rgba(207,163,122,.85), rgba(255,255,255,.40));
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes slide{
+      0%{ transform: translateX(-40%); width: 30%; opacity:.9 }
+      50%{ transform: translateX(100%); width: 55%; opacity:1 }
+      100%{ transform: translateX(230%); width: 30%; opacity:.9 }
+    }
+
+    /* =========================
+       LAYOUT HELPERS
+    ========================== */
+    .container{ width:min(var(--max), 92vw); margin: 0 auto; }
+    .section{ padding: 72px 0; }
+    .kicker{
+      font-size: 12px; letter-spacing: .22em;
+      color: rgba(74,16,32,.75);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .h2{
+      margin: 10px 0 0;
+      font-size: clamp(26px, 3.0vw, 40px);
+      letter-spacing: -.02em;
+      line-height: 1.1;
+    }
+    .lead{
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 70ch;
+    }
+
+    .grid{
+      display:grid;
+      gap: 18px;
+    }
+    .grid.cols-3{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .grid.cols-4{ grid-template-columns: repeat(4, minmax(0,1fr)); }
+    @media (max-width: 980px){
+      .grid.cols-3, .grid.cols-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px){
+      .grid.cols-3, .grid.cols-4{ grid-template-columns: 1fr; }
+      .section{ padding: 56px 0; }
+    }
+
+    .card{
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .card.soft{ box-shadow: var(--shadow-2); }
+
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(207,163,122,.45);
+      background: linear-gradient(135deg, rgba(207,163,122,.22), rgba(255,255,255,.9));
+      color: var(--maroon);
+      font-weight: 700;
+      cursor:pointer;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+      user-select:none;
+      box-shadow: 0 10px 25px rgba(74,16,32,.08);
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: 0 16px 35px rgba(74,16,32,.12); border-color: rgba(207,163,122,.75); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+
+    .btn.primary{
+      color:#fff;
+      border-color: rgba(255,255,255,.15);
+      background: linear-gradient(135deg, var(--maroon), var(--maroon-2));
+      box-shadow: 0 18px 45px rgba(45,11,19,.25);
+    }
+    .btn.primary:hover{ box-shadow: 0 22px 60px rgba(45,11,19,.30); }
+
+    .btn.ghost{
+      background: rgba(255,255,255,.75);
+      border-color: rgba(0,0,0,.10);
+      color: var(--ink);
+      box-shadow: none;
+    }
+    .btn.danger{
+      background: linear-gradient(135deg, rgba(180,35,24,.12), rgba(255,255,255,.92));
+      border-color: rgba(180,35,24,.35);
+      color: var(--bad);
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(74,16,32,.06);
+      border: 1px solid rgba(74,16,32,.12);
+      color: rgba(74,16,32,.92);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing:.02em;
+    }
+
+    /* =========================
+       ICONS (inline SVG sizing)
+    ========================== */
+    .i{ width:18px; height:18px; display:inline-block; }
+    .i.lg{ width:20px; height:20px; }
+    .i.xl{ width:22px; height:22px; }
+
+    /* =========================
+       NAVBAR
+    ========================== */
+    .nav{
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(246,239,232,.72);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .nav-inner{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 12px 0;
+      gap: 14px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .brand .mark{
+      width:40px; height:40px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 30%, rgba(231,200,171,.95), rgba(207,163,122,.55)),
+                  linear-gradient(135deg, rgba(255,255,255,.20), rgba(255,255,255,.02));
+      border: 1px solid rgba(74,16,32,.18);
+      box-shadow: 0 12px 25px rgba(74,16,32,.10);
+    }
+    .brand .name{
+      display:flex; flex-direction:column; line-height: 1.1;
+    }
+    .brand .name b{ font-size: 14px; letter-spacing:.02em; }
+    .brand .name span{ font-size: 12px; color: rgba(74,16,32,.75); font-weight: 700; }
+
+    .nav-links{
+      display:flex; gap: 16px; align-items:center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .nav-links a{
+      font-size: 13px;
+      color: rgba(31,26,26,.78);
+      font-weight: 700;
+      padding: 8px 10px;
+      border-radius: 999px;
+      transition: background .18s ease, color .18s ease, transform .18s ease;
+    }
+    .nav-links a:hover{
+      background: rgba(207,163,122,.16);
+      color: rgba(74,16,32,.95);
+      transform: translateY(-1px);
+    }
+
+    .nav-cta{
+      display:flex; gap: 10px; align-items:center;
+    }
+
+    @media (max-width: 920px){
+      .nav-links{ display:none; }
+    }
+
+    /* =========================
+       HERO
+    ========================== */
+    .hero{
+      position: relative;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    .hero-bg{
+      position:absolute; inset:-2px;
+      background:
+        linear-gradient(180deg, rgba(45,11,19,.68), rgba(45,11,19,.35) 46%, rgba(246,239,232,.95)),
+        var(--hero-image, radial-gradient(1000px 700px at 20% 20%, rgba(231,200,171,.55), rgba(74,16,32,.30) 55%, rgba(45,11,19,.55)));
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05) contrast(1.02);
+      transform: scale(1.03);
+    }
+    .hero::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(500px 200px at 15% 15%, rgba(231,200,171,.35), transparent 65%),
+        radial-gradient(400px 200px at 85% 25%, rgba(207,163,122,.25), transparent 60%),
+        linear-gradient(180deg, transparent 55%, rgba(246,239,232,1) 100%);
+      pointer-events:none;
+    }
+    .hero-inner{
+      position: relative;
+      padding: 76px 0 36px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 20px;
+      align-items: end;
+    }
+    .hero h1{
+      margin: 0;
+      font-size: clamp(34px, 4.1vw, 58px);
+      letter-spacing: -.03em;
+      line-height: 1.02;
+      color: #fff;
+      text-shadow: 0 18px 45px rgba(0,0,0,.25);
+    }
+    .hero p{
+      margin: 12px 0 0;
+      color: rgba(255,255,255,.86);
+      line-height: 1.7;
+      max-width: 62ch;
+      font-size: 15px;
+    }
+    .hero-actions{
+      margin-top: 18px;
+      display:flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+    .hero-badge-row{
+      display:flex; flex-wrap: wrap; gap: 10px;
+      margin-top: 18px;
+    }
+    .hero-side{
+      background: rgba(255,255,255,.82);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 25px 80px rgba(0,0,0,.22);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+    }
+    .hero-side .top{
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: linear-gradient(135deg, rgba(207,163,122,.18), rgba(255,255,255,.90));
+    }
+    .hero-side .top b{ display:block; font-size: 13px; letter-spacing:.03em; }
+    .hero-side .top span{ display:block; font-size: 12px; color: rgba(31,26,26,.70); margin-top: 6px; line-height: 1.55; }
+    .hero-side .body{
+      padding: 14px 16px 16px;
+      display:grid;
+      gap: 10px;
+    }
+    .mini-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.92);
+    }
+    .mini-row small{ color: rgba(31,26,26,.68); font-weight: 650; }
+    .mini-row b{ font-size: 13px; }
+
+    @media (max-width: 980px){
+      .hero-inner{ grid-template-columns: 1fr; }
+      .hero{ padding-bottom: 10px; }
+    }
+
+    /* =========================
+       PROMO SLIDER
+    ========================== */
+    .slider{
+      position: relative;
+      border-radius: var(--radius-xl);
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.08);
+      box-shadow: var(--shadow);
+      background: #fff;
+    }
+    .slides{
+      display:flex;
+      transition: transform .55s cubic-bezier(.2,.9,.2,1);
+      will-change: transform;
+    }
+    .slide{
+      min-width: 100%;
+      position: relative;
+      aspect-ratio: 16/6;
+      background:
+        radial-gradient(600px 200px at 15% 35%, rgba(231,200,171,.55), transparent 65%),
+        radial-gradient(500px 220px at 85% 35%, rgba(74,16,32,.22), transparent 65%),
+        linear-gradient(135deg, rgba(45,11,19,.92), rgba(74,16,32,.82));
+      color:#fff;
+      display:grid;
+      align-items: center;
+    }
+    .slide .content{
+      padding: 22px 24px;
+      display:grid;
+      gap: 6px;
+      width:min(760px, 92%);
+    }
+    .slide .content .tag{
+      display:inline-flex;
+      width:max-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.18);
+      font-size: 12px;
+      letter-spacing:.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.92);
+      font-weight: 800;
+    }
+    .slide .content h3{
+      margin:0;
+      font-size: clamp(20px, 2.4vw, 30px);
+      letter-spacing: -.02em;
+    }
+    .slide .content p{
+      margin:0;
+      color: rgba(255,255,255,.85);
+      line-height: 1.6;
+      max-width: 70ch;
+      font-size: 13px;
+    }
+    .slide .media{
+      position:absolute; inset:0;
+      background-image: var(--img, none);
+      background-size: cover;
+      background-position: center;
+      opacity:.22;
+      filter: saturate(1.08);
+    }
+    .slide::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, rgba(45,11,19,.85), rgba(45,11,19,.25) 55%, rgba(45,11,19,.05));
+      pointer-events:none;
+    }
+    .slide > * { position: relative; z-index: 1; }
+
+    .slider .navbtn{
+      position:absolute; top:50%;
+      transform: translateY(-50%);
+      width: 44px; height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.12);
+      color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer;
+      transition: transform .18s ease, background .18s ease;
+      backdrop-filter: blur(8px);
+      user-select:none;
+    }
+    .slider .navbtn:hover{ transform: translateY(-50%) scale(1.03); background: rgba(255,255,255,.18); }
+    .slider .navbtn.prev{ left: 12px; }
+    .slider .navbtn.next{ right: 12px; }
+
+    .dots{
+      position:absolute;
+      left: 16px; bottom: 14px;
+      display:flex; gap: 8px;
+      z-index: 2;
+    }
+    .dot{
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.14);
+      cursor:pointer;
+      transition: transform .18s ease, background .18s ease;
+    }
+    .dot.active{ background: rgba(231,200,171,.92); transform: scale(1.15); }
+
+    /* =========================
+       SERVICE CARDS
+    ========================== */
+    .service-card{
+      padding: 16px 16px 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0,0,0,.07);
+      background: linear-gradient(135deg, rgba(207,163,122,.10), rgba(255,255,255,.98));
+      box-shadow: 0 14px 38px rgba(74,16,32,.08);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      position: relative;
+      overflow:hidden;
+    }
+    .service-card:hover{
+      transform: translateY(-3px);
+      box-shadow: 0 20px 55px rgba(74,16,32,.12);
+      border-color: rgba(207,163,122,.50);
+    }
+    .service-card h4{ margin: 0; font-size: 16px; letter-spacing: -.01em; }
+    .service-card p{ margin: 8px 0 0; color: rgba(31,26,26,.72); line-height: 1.6; font-size: 13px; }
+    .service-meta{
+      margin-top: 12px;
+      display:flex; gap: 10px; align-items:center; justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .price{ font-weight: 850; color: rgba(74,16,32,.95); }
+    .duration{ font-size: 12px; color: rgba(31,26,26,.68); font-weight: 700; }
+    .check{
+      display:flex; align-items:center; gap: 10px;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px dashed rgba(74,16,32,.18);
+      background: rgba(255,255,255,.75);
+    }
+    .check input{ width: 18px; height: 18px; accent-color: var(--maroon); }
+    .check label{ font-size: 13px; font-weight: 800; color: rgba(31,26,26,.85); cursor:pointer; }
+
+    /* =========================
+       STYLISTS
+    ========================== */
+    .stylist{
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0,0,0,.07);
+      background: #fff;
+      box-shadow: var(--shadow-2);
+      display:grid;
+      grid-template-columns: 58px 1fr;
+      gap: 12px;
+      align-items:center;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .stylist:hover{ transform: translateY(-2px); box-shadow: var(--shadow); }
+    .avatar{
+      width:58px; height:58px;
+      border-radius: 18px;
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.08);
+      background: radial-gradient(circle at 30% 25%, rgba(231,200,171,.65), rgba(74,16,32,.12));
+      display:flex; align-items:center; justify-content:center;
+      color: rgba(74,16,32,.85);
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .stylist .info b{ display:block; font-size: 14px; }
+    .stylist .info span{ display:block; margin-top: 5px; font-size: 12px; color: rgba(31,26,26,.70); line-height: 1.5; }
+    .stylist .info small{ display:inline-flex; margin-top: 8px; color: rgba(74,16,32,.84); font-weight: 800; }
+
+    /* =========================
+       BOOKING
+    ========================== */
+    .booking-wrap{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
+      align-items:start;
+    }
+    @media (max-width: 980px){ .booking-wrap{ grid-template-columns: 1fr; } }
+
+    .panel{
+      padding: 16px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.86);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .panel h3{
+      margin:0;
+      font-size: 18px;
+      letter-spacing: -.02em;
+    }
+    .form{
+      margin-top: 12px;
+      display:grid;
+      gap: 12px;
+    }
+    .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px){ .row2{ grid-template-columns: 1fr; } }
+
+    .field{
+      display:grid;
+      gap: 6px;
+    }
+    .field label{
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(31,26,26,.80);
+      letter-spacing:.02em;
+    }
+    .field input, .field select, .field textarea{
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.95);
+      outline:none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus{
+      border-color: rgba(207,163,122,.85);
+      box-shadow: 0 0 0 6px rgba(207,163,122,.18);
+    }
+
+    .slots{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .slot{
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.90);
+      font-size: 12px;
+      font-weight: 850;
+      cursor:pointer;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
+      user-select:none;
+    }
+    .slot:hover{ transform: translateY(-1px); border-color: rgba(207,163,122,.75); }
+    .slot.selected{
+      background: linear-gradient(135deg, rgba(74,16,32,.92), rgba(45,11,19,.92));
+      color:#fff;
+      border-color: rgba(255,255,255,.16);
+    }
+    .slot.disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      background: rgba(0,0,0,.03);
+      transform:none !important;
+    }
+
+    .summary{
+      display:grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .summary .line{
+      display:flex; align-items:flex-start; justify-content:space-between; gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.92);
+    }
+    .summary .line small{ color: rgba(31,26,26,.70); font-weight: 750; }
+    .summary .line b{ font-weight: 900; color: rgba(74,16,32,.95); }
+    .summary ul{
+      margin: 0; padding-left: 18px;
+      color: rgba(31,26,26,.75);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .paybox{
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(207,163,122,.35);
+      background: linear-gradient(135deg, rgba(207,163,122,.12), rgba(255,255,255,.92));
+    }
+    .pay-tabs{
+      display:flex; flex-wrap: wrap; gap: 10px;
+      margin-top: 10px;
+    }
+    .chip{
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.90);
+      font-size: 12px;
+      font-weight: 850;
+      cursor:pointer;
+      user-select:none;
+      transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .chip:hover{ transform: translateY(-1px); border-color: rgba(207,163,122,.70); }
+    .chip.active{
+      background: linear-gradient(135deg, rgba(74,16,32,.92), rgba(45,11,19,.92));
+      color:#fff;
+      border-color: rgba(255,255,255,.12);
+    }
+    .note{
+      font-size: 12px;
+      color: rgba(31,26,26,.72);
+      line-height: 1.55;
+    }
+    .hint{
+      font-size: 12px;
+      color: rgba(74,16,32,.85);
+      font-weight: 800;
+    }
+
+    /* =========================
+       GALLERY
+    ========================== */
+    .gallery{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+    }
+    @media (max-width: 980px){ .gallery{ grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    @media (max-width: 680px){ .gallery{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+    .gitem{
+      border-radius: 18px;
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.08);
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(74,16,32,.08);
+      cursor:pointer;
+      transition: transform .2s ease, box-shadow .2s ease;
+      position: relative;
+      aspect-ratio: 1 / 1;
+    }
+    .gitem:hover{ transform: translateY(-2px); box-shadow: 0 18px 45px rgba(74,16,32,.12); }
+    .gitem .img{
+      position:absolute; inset:0;
+      background: var(--img);
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.02) contrast(1.02);
+      transform: scale(1.03);
+    }
+    .gitem::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.45));
+      opacity:.9;
+      pointer-events:none;
+    }
+    .gcap{
+      position:absolute; left: 12px; bottom: 10px;
+      color:#fff;
+      font-weight: 900;
+      font-size: 12px;
+      text-shadow: 0 10px 25px rgba(0,0,0,.30);
+      z-index: 1;
+      letter-spacing:.02em;
+    }
+
+    /* =========================
+       CONTACT / FOOTER
+    ========================== */
+    .contact-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 980px){ .contact-grid{ grid-template-columns: 1fr; } }
+
+    .mapbox{
+      border-radius: var(--radius-xl);
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.86);
+      box-shadow: var(--shadow);
+      min-height: 320px;
+      position: relative;
+    }
+    .mapbox iframe{
+      width:100%; height:100%;
+      border:0;
+      display:block;
+      filter: contrast(1.05) saturate(1.05);
+    }
+    .map-placeholder{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      padding: 18px;
+      background:
+        radial-gradient(600px 250px at 20% 30%, rgba(231,200,171,.55), transparent 65%),
+        radial-gradient(500px 250px at 85% 40%, rgba(74,16,32,.16), transparent 65%),
+        linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.70));
+      color: rgba(31,26,26,.78);
+      text-align:center;
+    }
+
+    footer{
+      padding: 36px 0 60px;
+      border-top: 1px solid rgba(0,0,0,.06);
+      color: rgba(31,26,26,.75);
+      font-size: 13px;
+    }
+    .foot{
+      display:flex; align-items:flex-start; justify-content:space-between; gap: 18px;
+      flex-wrap: wrap;
+    }
+    .social{
+      display:flex; gap: 10px; flex-wrap: wrap;
+    }
+    .sbtn{
+      width: 42px; height: 42px;
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      box-shadow: 0 12px 25px rgba(74,16,32,.06);
+    }
+    .sbtn:hover{ transform: translateY(-2px); box-shadow: 0 18px 40px rgba(74,16,32,.10); border-color: rgba(207,163,122,.65); }
+    .admin-link{
+      display:inline-flex;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px dashed rgba(74,16,32,.22);
+      background: rgba(255,255,255,.75);
+      cursor:pointer;
+      font-weight: 850;
+      color: rgba(74,16,32,.92);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+      user-select:none;
+    }
+    .admin-link:hover{ transform: translateY(-1px); border-color: rgba(207,163,122,.75); background: rgba(255,255,255,.92); }
+
+    /* =========================
+       MODALS
+    ========================== */
+    .modal{
+      position: fixed; inset:0; z-index: 90;
+      display:none;
+      align-items:center; justify-content:center;
+      background: rgba(12,10,10,.55);
+      padding: 18px;
+      backdrop-filter: blur(6px);
+    }
+    .modal.show{ display:flex; }
+    .modal-card{
+      width:min(980px, 96vw);
+      max-height: 86vh;
+      overflow:auto;
+      border-radius: 22px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(255,255,255,.35);
+      box-shadow: 0 30px 100px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+    }
+    .modal-head{
+      position: sticky; top:0;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(0,0,0,.07);
+      background: linear-gradient(135deg, rgba(207,163,122,.14), rgba(255,255,255,.95));
+      display:flex; align-items:center; justify-content:space-between; gap: 12px;
+      z-index: 2;
+    }
+    .modal-head b{ font-size: 14px; letter-spacing: .02em; }
+    .x{
+      width: 40px; height: 40px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition: transform .18s ease;
+    }
+    .x:hover{ transform: scale(1.03); }
+
+    .modal-body{ padding: 16px; }
+
+    /* =========================
+       ADMIN DASHBOARD
+    ========================== */
+    .admin-shell{
+      display:none;
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 700px at 10% -10%, rgba(207,163,122,.18), transparent 60%),
+        radial-gradient(900px 600px at 110% 20%, rgba(74,16,32,.10), transparent 60%),
+        var(--bg);
+    }
+    .admin-shell.show{ display:block; }
+    .admin-top{
+      padding: 18px 0 10px;
+    }
+    .admin-head{
+      display:flex; align-items:flex-start; justify-content:space-between; gap: 14px;
+      flex-wrap: wrap;
+    }
+    .admin-head h2{ margin:0; font-size: 22px; letter-spacing: -.02em; }
+    .admin-head p{ margin: 6px 0 0; color: rgba(31,26,26,.70); line-height: 1.55; font-size: 13px; }
+
+    .tabs{
+      margin-top: 14px;
+      display:flex; gap: 10px; flex-wrap: wrap;
+    }
+    .tab{
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.82);
+      font-size: 12px;
+      font-weight: 900;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .tab:hover{ transform: translateY(-1px); border-color: rgba(207,163,122,.70); }
+    .tab.active{
+      background: linear-gradient(135deg, rgba(74,16,32,.92), rgba(45,11,19,.92));
+      color:#fff;
+      border-color: rgba(255,255,255,.12);
+    }
+    .admin-grid{
+      margin-top: 16px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding-bottom: 60px;
+    }
+
+    .table{
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow:hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.92);
+    }
+    .table th, .table td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      text-align:left;
+      font-size: 12px;
+      vertical-align: top;
+    }
+    .table th{
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: rgba(74,16,32,.86);
+      background: linear-gradient(135deg, rgba(207,163,122,.14), rgba(255,255,255,.95));
+    }
+    .table tr:last-child td{ border-bottom: 0; }
+    .actions{
+      display:flex; gap: 8px; flex-wrap: wrap;
+    }
+    .mini{
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.90);
+      cursor:pointer;
+      font-size: 12px;
+      font-weight: 900;
+      transition: transform .18s ease, border-color .18s ease;
+      user-select:none;
+    }
+    .mini:hover{ transform: translateY(-1px); border-color: rgba(207,163,122,.70); }
+    .mini.danger{ border-color: rgba(180,35,24,.35); color: var(--bad); }
+    .mini.ok{ border-color: rgba(14,122,70,.30); color: var(--ok); }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      z-index: 120;
+      display:none;
+      padding: 12px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(31,26,26,.82);
+      color: rgba(255,255,255,.92);
+      box-shadow: 0 22px 70px rgba(0,0,0,.25);
+      font-size: 13px;
+      font-weight: 800;
+      backdrop-filter: blur(10px);
+      text-align:center;
+      max-width: 92vw;
+    }
+    .toast.show{ display:block; animation: toastIn .18s ease; }
+    @keyframes toastIn{ from{ transform: translateX(-50%) translateY(8px); opacity:.2 } to{ transform: translateX(-50%) translateY(0); opacity:1 } }
+
+    /* =========================
+       REVEAL ANIMATIONS
+    ========================== */
+    .reveal{
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    .reveal.in{
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; animation: none !important; scroll-behavior: auto !important; }
+      .reveal{ opacity: 1 !important; transform:none !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- LOADER -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader-card">
+      <div class="brandline">
+        <div class="gem" aria-hidden="true"></div>
+        <div>
+          <div class="loader-title" id="loaderTitle">Daffodil Salon</div>
+          <div class="loader-sub">Preparing premium booking experience…</div>
+        </div>
+      </div>
+      <div class="progress" aria-hidden="true"><div class="bar"></div></div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER APP -->
+  <div id="customerApp">
+    <header class="nav">
+      <div class="container nav-inner">
+        <!-- Logo must go to Home instantly -->
+        <div class="brand" id="brandHome" title="Go to Home">
+          <div class="mark" aria-hidden="true"></div>
+          <div class="name">
+            <b id="navSalonName">Daffodil</b>
+            <span id="navTagline">Beauty, Care & Confidence</span>
+          </div>
+        </div>
+
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="#home" data-scroll>Home</a>
+          <a href="#promos" data-scroll>Offers</a>
+          <a href="#services" data-scroll>Services</a>
+          <a href="#stylists" data-scroll>Stylists</a>
+          <a href="#booking" data-scroll>Book</a>
+          <a href="#gallery" data-scroll>Gallery</a>
+          <a href="#contact" data-scroll>Contact</a>
+        </nav>
+
+        <div class="nav-cta">
+          <button class="btn ghost" id="openAdminFromNav" type="button" title="Admin Login">
+            <span class="i" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2-8 4.5V20h16v-1.5C20 16 16.42 14 12 14Z" fill="currentColor"/></svg>
+            </span>
+            Admin
+          </button>
+          <button class="btn primary" id="heroBookBtnTop" type="button">
+            <span class="i" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3H7Zm12 7H5v10h14V10Z" fill="currentColor"/></svg>
+            </span>
+            Book Appointment
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero" id="home" aria-label="Hero">
+      <div class="hero-bg" id="heroBg"></div>
+      <div class="container hero-inner">
+        <div class="reveal">
+          <h1><span id="heroSalonName">Daffodil</span> Salon</h1>
+          <p id="heroTagline">Beauty, Care & Confidence</p>
+          <p id="heroDescription">
+            Luxury salon services with professional care, premium hygiene, and beautifully crafted results. Select your services, pick a slot, and confirm in minutes.
+          </p>
+
+          <div class="hero-actions">
+            <button class="btn primary" id="heroBookBtn" type="button">
+              <span class="i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-7-11a7 7 0 0 1 14 0c0 6.65-7 11-7 11Zm0-9a2 2 0 1 0-2-2 2 2 0 0 0 2 2Z" fill="currentColor"/></svg>
+              </span>
+              Book Now
+            </button>
+            <a class="btn" href="#services" data-scroll>
+              <span class="i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" fill="currentColor"/></svg>
+              </span>
+              Explore Services
+            </a>
+          </div>
+
+          <div class="hero-badge-row">
+            <span class="pill">
+              <span class="i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.6 9 9l3-7Z" fill="currentColor"/></svg>
+              </span>
+              Premium Results
+            </span>
+            <span class="pill">
+              <span class="i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 22a8 8 0 1 1 8-8 8 8 0 0 1-8 8Zm1-14h-2v7h6v-2h-4V8Z" fill="currentColor"/></svg>
+              </span>
+              1-Hour Slots
+            </span>
+            <span class="pill">
+              <span class="i" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M20 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Zm0 4H4V8h16v2Z" fill="currentColor"/></svg>
+              </span>
+              UPI / Pay at Salon
+            </span>
+          </div>
+        </div>
+
+        <aside class="hero-side reveal" aria-label="Quick info">
+          <div class="top">
+            <b>Today’s Highlights</b>
+            <span>Fast booking, elegant confirmations (WhatsApp + Calendar), and owner-friendly dashboard.</span>
+          </div>
+          <div class="body">
+            <div class="mini-row">
+              <small>Hours</small>
+              <b id="miniHours">10:00 AM – 8:00 PM</b>
+            </div>
+            <div class="mini-row">
+              <small>Owner WhatsApp</small>
+              <b id="miniOwnerWa">+91 7467977770</b>
+            </div>
+            <div class="mini-row">
+              <small>UPI</small>
+              <b id="miniUpi">8054307107@ptsbi</b>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PROMOS -->
+    <section class="section" id="promos" aria-label="Promotions">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Offers</div>
+          <div class="h2">Seasonal Deals & Premium Packages</div>
+          <p class="lead">Promotions rotate automatically. The owner can upload banners, edit text, and reorder them in the Admin dashboard.</p>
+        </div>
+
+        <div class="slider reveal" style="margin-top:18px">
+          <div class="slides" id="slides"></div>
+          <div class="navbtn prev" id="promoPrev" title="Previous">
+            <span class="i xl" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+          <div class="navbtn next" id="promoNext" title="Next">
+            <span class="i xl" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+          <div class="dots" id="promoDots" aria-label="Promo navigation"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="section" id="services" aria-label="Services">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Services</div>
+          <div class="h2">Choose Your Perfect Combination</div>
+          <p class="lead">Select multiple services for one appointment. Total price updates instantly.</p>
+        </div>
+
+        <div class="grid cols-3 reveal" id="servicesGrid" style="margin-top:18px"></div>
+      </div>
+    </section>
+
+    <!-- STYLISTS -->
+    <section class="section" id="stylists" aria-label="Stylists">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Team</div>
+          <div class="h2">Our Stylists & Artists</div>
+          <p class="lead">Owner can edit stylist details from Admin dashboard.</p>
+        </div>
+
+        <div class="grid cols-3 reveal" id="stylistsGrid" style="margin-top:18px"></div>
+      </div>
+    </section>
+
+    <!-- BOOKING -->
+    <section class="section" id="booking" aria-label="Booking">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Booking</div>
+          <div class="h2">Book Your Appointment</div>
+          <p class="lead">Pick services, choose date & time, and confirm. Booked/blocked slots are automatically disabled.</p>
+        </div>
+
+        <div class="booking-wrap" style="margin-top:18px">
+          <div class="panel reveal">
+            <h3>Appointment Details</h3>
+            <div class="form" id="bookingForm">
+              <div class="row2">
+                <div class="field">
+                  <label for="dateInput">Appointment Date</label>
+                  <input id="dateInput" type="date" />
+                </div>
+
+                <div class="field">
+                  <label>Time Slot</label>
+                  <div class="slots" id="slots"></div>
+                  <div class="note" id="slotNote" style="margin-top:6px"></div>
+                </div>
+              </div>
+
+              <div class="row2">
+                <div class="field">
+                  <label for="nameInput">Name *</label>
+                  <input id="nameInput" type="text" placeholder="Your full name" autocomplete="name" />
+                </div>
+                <div class="field">
+                  <label for="phoneInput">Phone Number *</label>
+                  <input id="phoneInput" type="tel" placeholder="e.g. 9876543210" autocomplete="tel" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="emailInput">Email *</label>
+                <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="email" />
+              </div>
+
+              <div class="paybox">
+                <b style="display:block;font-size:13px;letter-spacing:.02em">Payment</b>
+                <div class="pay-tabs" id="payTabs"></div>
+                <div id="payDetails" style="margin-top:10px"></div>
+              </div>
+
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 4px;">
+                <button class="btn primary" id="confirmBookingBtn" type="button">
+                  <span class="i" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  Confirm Booking
+                </button>
+                <button class="btn ghost" id="clearSelectionBtn" type="button">Clear Selection</button>
+              </div>
+
+              <div class="note" style="margin-top:6px">
+                Owner can block any date or time from the Admin dashboard.
+              </div>
+            </div>
+          </div>
+
+          <aside class="panel reveal">
+            <h3>Summary</h3>
+            <div class="summary">
+              <div class="line">
+                <small>Selected Services</small>
+                <b id="selCount">0</b>
+              </div>
+              <div class="line">
+                <small>Total Duration</small>
+                <b id="selDuration">0 min</b>
+              </div>
+              <div class="line">
+                <small>Total Price</small>
+                <b id="selTotal">₹0</b>
+              </div>
+              <div class="line">
+                <div>
+                  <small>Services List</small>
+                  <ul id="selList" style="margin-top:6px"></ul>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 12px" class="note">
+              After confirmation you’ll get buttons for WhatsApp confirmation and Google Calendar.
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section class="section" id="gallery" aria-label="Gallery">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Portfolio</div>
+          <div class="h2">Work Showcase</div>
+          <p class="lead">Hairstyles, makeup work, and transformations. Click any image to enlarge.</p>
+        </div>
+
+        <div class="gallery reveal" id="galleryGrid" style="margin-top:18px"></div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="section" id="contact" aria-label="Contact">
+      <div class="container">
+        <div class="reveal">
+          <div class="kicker">Contact</div>
+          <div class="h2">Visit Daffodil</div>
+          <p class="lead">Address, phone, email, and social links are editable from Admin dashboard.</p>
+        </div>
+
+        <div class="contact-grid" style="margin-top:18px">
+          <div class="panel reveal">
+            <h3>Details</h3>
+            <div class="summary" style="margin-top:12px">
+              <div class="line">
+                <small>Address</small>
+                <b id="contactAddress">Premium Location, Your City</b>
+              </div>
+              <div class="line">
+                <small>Phone</small>
+                <b id="contactPhone">+91 9000000000</b>
+              </div>
+              <div class="line">
+                <small>Email</small>
+                <b id="contactEmail">hello@daffodil-salon.com</b>
+              </div>
+              <div class="line">
+                <small>Hours</small>
+                <b id="contactHours">10:00 AM – 8:00 PM</b>
+              </div>
+            </div>
+
+            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+              <a class="btn" id="waContactBtn" target="_blank" rel="noopener">
+                <span class="i" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M20.5 11.8A8.5 8.5 0 1 1 7.1 5.1a8.5 8.5 0 0 1 13.4 6.7Zm-8.5 7.2a7.1 7.1 0 0 0 3.6-1l2.5.8-.8-2.4a7.2 7.2 0 1 0-5.3 2.6Z" fill="currentColor"/><path d="M9.3 8.8c.2-.3.4-.3.6-.3h.6c.2 0 .4 0 .6.4l.7 1.6c.1.3.1.5 0 .7l-.4.4c-.2.2-.2.4-.1.6.4.7 1.4 1.6 2.4 2 .2.1.4.1.6-.1l.4-.5c.2-.2.4-.2.7-.1l1.7.8c.3.2.4.4.4.6v.8c0 .2-.1.4-.3.5-.4.2-1.4.6-2.3.4-1.3-.2-3.1-1.2-4.3-2.4-1.2-1.2-2.2-3-2.4-4.3-.1-.9.2-1.9.4-2.3Z" fill="currentColor"/></svg>
+                </span>
+                WhatsApp
+              </a>
+              <a class="btn ghost" id="instaBtn" target="_blank" rel="noopener">Instagram</a>
+              <a class="btn ghost" id="fbBtn" target="_blank" rel="noopener">Facebook</a>
+            </div>
+          </div>
+
+          <div class="mapbox reveal" id="mapBox">
+            <div class="map-placeholder" id="mapPlaceholder">
+              <div>
+                <b style="font-size:14px;letter-spacing:.02em">Google Maps Placeholder</b>
+                <div class="note" style="margin-top:8px">
+                  Admin can paste a Google Maps embed URL in <b>Admin → Business Info</b>.
+                </div>
+              </div>
+            </div>
+            <iframe id="mapFrame" title="Google Map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="display:none"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="container foot">
+        <div>
+          <div style="display:flex; align-items:center; gap:10px">
+            <div class="mark" aria-hidden="true" style="width:36px;height:36px;border-radius:14px"></div>
+            <div>
+              <b id="footSalonName">Daffodil</b><br/>
+              <span id="footAddress">Premium Location, Your City</span>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <span id="footPhone">+91 9000000000</span> ·
+            <span id="footEmail">hello@daffodil-salon.com</span>
+          </div>
+          <div class="note" style="margin-top:8px">Business hours: <b id="footHours">10:00 AM – 8:00 PM</b></div>
+          <div style="margin-top:12px">
+            <span class="admin-link" id="openAdminFromFooter">Admin Login</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-weight:900; letter-spacing:.02em; margin-bottom:10px">Social</div>
+          <div class="social">
+            <button class="sbtn" id="sInstagram" title="Instagram">
+              <span class="i lg" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm5 6.2A3.8 3.8 0 1 0 15.8 12 3.8 3.8 0 0 0 12 8.2ZM18 6.8a.9.9 0 1 1-.9-.9.9.9 0 0 1 .9.9Z" stroke="currentColor" stroke-width="1.8"/></svg>
+              </span>
+            </button>
+            <button class="sbtn" id="sWhatsApp" title="WhatsApp">
+              <span class="i lg" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M20.5 11.8A8.5 8.5 0 1 1 7.1 5.1a8.5 8.5 0 0 1 13.4 6.7Zm-8.5 7.2a7.1 7.1 0 0 0 3.6-1l2.5.8-.8-2.4a7.2 7.2 0 1 0-5.3 2.6Z" fill="currentColor"/></svg>
+              </span>
+            </button>
+            <button class="sbtn" id="sFacebook" title="Facebook">
+              <span class="i lg" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M14 8h2V5h-2a4 4 0 0 0-4 4v2H8v3h2v7h3v-7h2.2l.8-3H13V9a1 1 0 0 1 1-1Z" fill="currentColor"/></svg>
+              </span>
+            </button>
+          </div>
+
+          <div class="note" style="margin-top:12px; max-width: 44ch">
+            This website runs entirely in your browser and saves bookings in LocalStorage. For real automatic SMS/WhatsApp or bank settlement verification, a backend/service is required (see Admin → Payments notes).
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- GALLERY MODAL -->
+  <div class="modal" id="galleryModal" aria-hidden="true">
+    <div class="modal-card" style="width:min(920px,96vw)">
+      <div class="modal-head">
+        <b id="galleryModalTitle">Preview</b>
+        <button class="x" id="closeGalleryModal" type="button" aria-label="Close">
+          <span class="i xl" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="border-radius:18px; overflow:hidden; border:1px solid rgba(0,0,0,.08); background:#fff">
+          <img id="galleryModalImg" alt="Gallery image" style="width:100%; height:auto; display:block" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING CONFIRMATION MODAL -->
+  <div class="modal" id="confirmModal" aria-hidden="true">
+    <div class="modal-card" style="width:min(860px,96vw)">
+      <div class="modal-head">
+        <b>Appointment Confirmed</b>
+        <button class="x" id="closeConfirmModal" type="button" aria-label="Close">
+          <span class="i xl" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN MODAL -->
+  <div class="modal" id="adminModal" aria-hidden="true">
+    <div class="modal-card" style="width:min(860px,96vw)">
+      <div class="modal-head">
+        <b>Owner/Admin Login</b>
+        <button class="x" id="closeAdminModal" type="button" aria-label="Close">
+          <span class="i xl" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="grid cols-3" style="grid-template-columns: 1.1fr .9fr; gap: 14px">
+          <div class="panel" style="box-shadow:none">
+            <h3>Login</h3>
+            <div class="form">
+              <div class="row2">
+                <div class="field">
+                  <label for="adminUser">Username</label>
+                  <input id="adminUser" type="text" value="admin" />
+                </div>
+                <div class="field">
+                  <label for="adminPass">Password</label>
+                  <input id="adminPass" type="password" value="" placeholder="Enter password" />
+                </div>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap">
+                <button class="btn primary" id="adminLoginBtn" type="button">Login</button>
+                <button class="btn ghost" id="openChangePassword" type="button">Change Password</button>
+                <button class="btn ghost" id="openForgotPassword" type="button">Forgot Password (OTP)</button>
+              </div>
+
+              <div class="note">
+                Default login: <b>admin / admin123</b> (change immediately after first use).
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="box-shadow:none">
+            <h3>OTP & WhatsApp Notes</h3>
+            <div class="note" style="margin-top:10px">
+              This is a single HTML file (no server). Real SMS OTP cannot be sent automatically without an SMS provider + backend.
+              This website provides a working <b>client-side OTP demo</b> and can open WhatsApp to the owner number with the OTP text for manual sending.
+            </div>
+            <div class="summary" style="margin-top:12px">
+              <div class="line">
+                <small>Owner WhatsApp</small>
+                <b id="adminOwnerWaPreview">+91 7467977770</b>
+              </div>
+              <div class="line">
+                <small>OTP Mode</small>
+                <b>Demo (in-app + WhatsApp open)</b>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Change password panel -->
+        <div class="panel" id="changePasswordPanel" style="margin-top:14px; display:none">
+          <h3>Change Password</h3>
+          <div class="form">
+            <div class="row2">
+              <div class="field">
+                <label for="cpCurrent">Current Password</label>
+                <input id="cpCurrent" type="password" placeholder="Current password" />
+              </div>
+              <div class="field">
+                <label for="cpNew">New Password</label>
+                <input id="cpNew" type="password" placeholder="New password (min 6 chars)" />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn primary" id="cpSave" type="button">Update Password</button>
+              <button class="btn ghost" id="cpCancel" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Forgot password OTP panel -->
+        <div class="panel" id="forgotPasswordPanel" style="margin-top:14px; display:none">
+          <h3>Forgot Password (OTP Reset)</h3>
+          <div class="note" style="margin-top:8px">
+            Step 1: Generate OTP. Step 2: Open WhatsApp message to owner number (manual send). Step 3: Enter OTP and set a new password.
+          </div>
+
+          <div class="form" style="margin-top:12px">
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn" id="otpGenerate" type="button">Generate OTP</button>
+              <button class="btn ghost" id="otpSendWhatsApp" type="button" disabled>Open WhatsApp with OTP</button>
+            </div>
+
+            <div class="summary">
+              <div class="line">
+                <small>OTP (Demo Display)</small>
+                <b id="otpDisplay">—</b>
+              </div>
+              <div class="line">
+                <small>Expires</small>
+                <b id="otpExpiry">—</b>
+              </div>
+            </div>
+
+            <div class="row2">
+              <div class="field">
+                <label for="otpInput">Enter OTP</label>
+                <input id="otpInput" type="text" inputmode="numeric" placeholder="6-digit OTP" />
+              </div>
+              <div class="field">
+                <label for="otpNewPass">New Password</label>
+                <input id="otpNewPass" type="password" placeholder="New password" />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn primary" id="otpResetBtn" type="button">Reset Password</button>
+              <button class="btn ghost" id="otpCancel" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN DASHBOARD -->
+  <div class="admin-shell" id="adminShell" aria-label="Admin dashboard">
+    <div class="nav">
+      <div class="container nav-inner">
+        <div class="brand" id="adminBrandHome" title="Back to Customer Site">
+          <div class="mark" aria-hidden="true"></div>
+          <div class="name">
+            <b id="adminSalonNameTop">Daffodil</b>
+            <span>Owner Dashboard</span>
+          </div>
+        </div>
+
+        <div class="nav-cta">
+          <button class="btn ghost" id="adminLogout" type="button">Logout</button>
+          <button class="btn primary" id="adminBackToSite" type="button">Back to Website</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container admin-top">
+      <div class="admin-head">
+        <div>
+          <h2>Admin Dashboard</h2>
+          <p>Manage services, stylists, gallery, promotions, bookings, time slots, blocked dates/times, business info, and payment settings. All changes save instantly to LocalStorage.</p>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+          <span class="pill" id="adminPillUpcoming">Upcoming: 0</span>
+          <span class="pill" id="adminPillRevenue">Revenue: ₹0</span>
+          <button class="btn" id="adminExport" type="button">Export Bookings JSON</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="adminTabs"></div>
+
+      <div class="admin-grid" id="adminView"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /* ============================================================
+       SINGLE-FILE SALON WEBSITE
+       - LocalStorage state (versioned)
+       - Customer booking flow
+       - Admin dashboard with CRUD + availability controls
+       - OTP demo reset (client-only)
+    ============================================================ */
+
+    /* =========================
+       UTILITIES
+    ========================== */
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+    const nowISO = () => new Date().toISOString();
+    const todayStr = () => {
+      const d = new Date();
+      d.setHours(0,0,0,0);
+      return d.toISOString().slice(0,10);
+    };
+    const fmtMoney = (n) => "₹" + (Number(n||0)).toLocaleString("en-IN");
+    const uid = (p="id") => p + "_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+
+    function toast(msg){
+      const t = $("#toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(()=>t.classList.remove("show"), 2600);
+    }
+
+    function safePhoneToWaDigits(phone){
+      // Convert +91 746... or 746... into 91746...
+      const digits = String(phone||"").replace(/[^\d]/g,"");
+      if (!digits) return "";
+      if (digits.startsWith("91") && digits.length>=12) return digits;
+      if (digits.length===10) return "91" + digits;
+      return digits;
+    }
+
+    function waLink(phone, message){
+      const p = safePhoneToWaDigits(phone);
+      const text = encodeURIComponent(message || "");
+      // wa.me works on mobile and desktop
+      return `https://wa.me/${p}?text=${text}`;
+    }
+
+    function googleCalLink({title, details, location, startISO, endISO}){
+      // Google Calendar URL format: https://calendar.google.com/calendar/render?action=TEMPLATE&text=...&dates=.../...&details=...&location=...
+      // Dates must be in UTC-like compact format: YYYYMMDDTHHMMSSZ
+      const toG = (iso) => iso.replace(/[-:]/g,"").replace(".000","").replace("Z","Z");
+      // Ensure UTC 'Z' by using Date -> toISOString
+      const s = new Date(startISO).toISOString();
+      const e = new Date(endISO).toISOString();
+      const dates = `${toG(s)}/${toG(e)}`;
+      const url = new URL("https://calendar.google.com/calendar/render");
+      url.searchParams.set("action","TEMPLATE");
+      url.searchParams.set("text", title || "Salon Appointment");
+      url.searchParams.set("details", details || "");
+      if (location) url.searchParams.set("location", location);
+      url.searchParams.set("dates", dates);
+      return url.toString();
+    }
+
+    function parseTimeTo24(slotLabel){
+      // Input like "10:00 AM"
+      // Returns {h, m}
+      const m = slotLabel.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if(!m) return {h:10, m:0};
+      let h = Number(m[1]);
+      const mm = Number(m[2]);
+      const ap = m[3].toUpperCase();
+      if (ap==="PM" && h!==12) h += 12;
+      if (ap==="AM" && h===12) h = 0;
+      return {h, m:mm};
+    }
+
+    function addMinutes(dateObj, mins){
+      const d = new Date(dateObj.getTime());
+      d.setMinutes(d.getMinutes()+mins);
+      return d;
+    }
+
+    function htmlEscape(s){
+      return String(s||"").replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function fileToDataURL(file){
+      return new Promise((resolve, reject)=>{
+        const r = new FileReader();
+        r.onload = ()=> resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    /* =========================
+       STORAGE (STATE)
+    ========================== */
+    const STORE_KEY = "daffodil_salon_state_v1";
+    const AUTH_KEY = "daffodil_admin_auth_v1"; // sessionStorage only (more private)
+
+    function defaultSVGDataURI(title, subtitle){
+      const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">
+        <defs>
+          <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#2d0b13"/>
+            <stop offset="0.55" stop-color="#4a1020"/>
+            <stop offset="1" stop-color="#cfa37a"/>
+          </linearGradient>
+          <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity=".35"/>
+          </filter>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#g)"/>
+        <circle cx="260" cy="240" r="220" fill="#e7c8ab" opacity=".22"/>
+        <circle cx="980" cy="180" r="240" fill="#ffffff" opacity=".10"/>
+        <circle cx="930" cy="650" r="260" fill="#e7c8ab" opacity=".16"/>
+        <text x="80" y="430" fill="#ffffff" font-family="system-ui,Segoe UI,Arial" font-size="74" font-weight="800" filter="url(#s)">${htmlEscape(title)}</text>
+        <text x="80" y="500" fill="#ffffff" font-family="system-ui,Segoe UI,Arial" font-size="34" font-weight="650" opacity=".90">${htmlEscape(subtitle)}</text>
+      </svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
+    }
+
+    function seedState(){
+      // Default services
+      const services = [
+        {id: uid("svc"), name:"Haircut", desc:"Precision cut tailored to your face shape.", price:399, duration:45},
+        {id: uid("svc"), name:"Hair Styling", desc:"Blow-dry & styling for a polished finish.", price:499, duration:45},
+        {id: uid("svc"), name:"Hair Spa", desc:"Deep nourishment + relaxation massage.", price:999, duration:60},
+        {id: uid("svc"), name:"Facial", desc:"Glow facial with premium products.", price:1199, duration:60},
+        {id: uid("svc"), name:"Manicure", desc:"Nail shaping, cuticle care & finish.", price:499, duration:45},
+        {id: uid("svc"), name:"Pedicure", desc:"Foot care, scrub, massage & polish.", price:699, duration:60},
+        {id: uid("svc"), name:"Waxing", desc:"Full/half body waxing (as selected).", price:799, duration:60},
+        {id: uid("svc"), name:"Threading", desc:"Eyebrow/upper lip threading.", price:99, duration:15},
+        {id: uid("svc"), name:"Bridal Makeup", desc:"Luxury bridal look with long-wear finish.", price:8999, duration:120},
+        {id: uid("svc"), name:"Skin Treatment", desc:"Targeted treatment for your skin goals.", price:1999, duration:60},
+      ];
+
+      // Default stylists
+      const stylists = [
+        {id: uid("sty"), name:"Aanya", role:"Senior Stylist", specialties:"Haircut • Styling • Hair Spa", exp:"6+ years", photo:""},
+        {id: uid("sty"), name:"Meera", role:"Makeup Artist", specialties:"Bridal • Party • HD Makeup", exp:"5+ years", photo:""},
+        {id: uid("sty"), name:"Riya", role:"Nail Specialist", specialties:"Manicure • Pedicure • Nail Art", exp:"4+ years", photo:""},
+      ];
+
+      // Default gallery
+      const gallery = [
+        {id: uid("gal"), title:"Hairstyles", img: defaultSVGDataURI("Hairstyles", "Premium finishing & shine")},
+        {id: uid("gal"), title:"Makeup Work", img: defaultSVGDataURI("Makeup Work", "Elegant, long-wear looks")},
+        {id: uid("gal"), title:"Before / After", img: defaultSVGDataURI("Before / After", "Transformations you can feel")},
+        {id: uid("gal"), title:"Bridal", img: defaultSVGDataURI("Bridal", "Luxury bridal packages")},
+        {id: uid("gal"), title:"Skin Glow", img: defaultSVGDataURI("Skin Glow", "Facials & treatments")},
+        {id: uid("gal"), title:"Nails", img: defaultSVGDataURI("Nails", "Clean, refined, lasting")},
+        {id: uid("gal"), title:"Hair Spa", img: defaultSVGDataURI("Hair Spa", "Relax + repair")},
+        {id: uid("gal"), title:"Color & Style", img: defaultSVGDataURI("Color & Style", "Modern looks")},
+      ];
+
+      // Default promos
+      const promos = [
+        {id: uid("pro"), tag:"Limited", title:"Bridal Package — Premium Finish", subtitle:"Exclusive bridal makeup & hair styling bundles.", img: defaultSVGDataURI("Bridal Package", "Premium Finish")},
+        {id: uid("pro"), tag:"Seasonal", title:"Glow Facial + Cleanup Combo", subtitle:"Special pricing for the season. Limited slots.", img: defaultSVGDataURI("Glow Combo", "Seasonal Offer")},
+        {id: uid("pro"), tag:"Festival", title:"Party Makeup Offer", subtitle:"Get ready in style. Book early to secure time.", img: defaultSVGDataURI("Party Makeup", "Festival Deal")}
+      ];
+
+      // Default slots (10AM to 8PM with 1-hour gaps; last start 7PM)
+      const slots = ["10:00 AM","11:00 AM","12:00 PM","1:00 PM","2:00 PM","3:00 PM","4:00 PM","5:00 PM","6:00 PM","7:00 PM"];
+
+      const state = {
+        version: 1,
+        business: {
+          salonName: "Daffodil",
+          tagline: "Beauty, Care & Confidence",
+          description: "Luxury salon services with professional care, premium hygiene, and beautifully crafted results.",
+          address: "Premium Location, Your City",
+          phone: "+91 9000000000",
+          email: "hello@daffodil-salon.com",
+          hours: "10:00 AM – 8:00 PM",
+          mapEmbedUrl: "",
+          social: {
+            instagram: "https://instagram.com/",
+            facebook: "https://facebook.com/",
+            whatsapp: "" // derived in UI (owner WA)
+          },
+          heroImage: "" // dataURL
+        },
+        owner: {
+          whatsapp: "+91 7467977770"
+        },
+        payments: {
+          upiId: "8054307107@ptsbi",
+          upiQr: "",              // dataURL (uploaded by admin)
+          razorpayKeyId: "",       // optional (needs internet + proper backend order verification to be truly secure)
+          razorpayPaymentLink: ""  // optional - real hosted link owner can create in Razorpay dashboard
+        },
+        availability: {
+          slots,
+          blockedDates: [],            // ["YYYY-MM-DD"]
+          blockedSlots: {},            // { "YYYY-MM-DD": ["10:00 AM", ...] }
+          bookedSlots: {}              // { "YYYY-MM-DD": ["11:00 AM", ...] } derived as bookings are made (also stored for fast lookup)
+        },
+        services,
+        stylists,
+        gallery,
+        promos,
+        bookings: [],
+        admin: {
+          username: "admin",
+          // password will be stored as salted hash
+          passSalt: "",
+          passHash: ""
+        },
+        otp: {
+          code: "",
+          expiresAt: 0
+        }
+      };
+      return state;
+    }
+
+    async function sha256(text){
+      const enc = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest("SHA-256", enc);
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+    function randSalt(){
+      return Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+    }
+
+    async function ensureAdminPasswordInitialized(state){
+      if (!state.admin.passSalt || !state.admin.passHash){
+        // default password = admin123
+        const salt = randSalt();
+        const hash = await sha256(salt + "|admin123");
+        state.admin.passSalt = salt;
+        state.admin.passHash = hash;
+      }
+    }
+
+    function loadState(){
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    let STATE = null;
+
+    function saveState(nextState, {silent=false} = {}){
+      STATE = nextState;
+      localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
+      if (!silent){
+        renderAll();
+      }
+    }
+
+    function withState(mutator){
+      const copy = structuredClone(STATE);
+      mutator(copy);
+      saveState(copy);
+    }
+
+    /* =========================
+       CUSTOMER SELECTION STATE (in-memory)
+    ========================== */
+    const selection = {
+      serviceIds: new Set(),
+      timeSlot: "",
+      date: todayStr(),
+      payMode: "pay_at_salon", // pay_at_salon | upi | card_sim | razorpay_sim | razorpay_link
+      utr: "" // optional reference entered by customer
+    };
+
+    /* =========================
+       RENDER: CUSTOMER
+    ========================== */
+    function applyBusinessToUI(){
+      const b = STATE.business;
+      $("#navSalonName").textContent = b.salonName;
+      $("#navTagline").textContent = b.tagline;
+
+      $("#heroSalonName").textContent = b.salonName;
+      $("#heroTagline").textContent = b.tagline;
+      $("#heroDescription").textContent = b.description || "Luxury salon services with professional care.";
+
+      $("#footSalonName").textContent = b.salonName;
+      $("#footAddress").textContent = b.address;
+      $("#footPhone").textContent = b.phone;
+      $("#footEmail").textContent = b.email;
+      $("#footHours").textContent = b.hours;
+
+      $("#contactAddress").textContent = b.address;
+      $("#contactPhone").textContent = b.phone;
+      $("#contactEmail").textContent = b.email;
+      $("#contactHours").textContent = b.hours;
+
+      $("#miniHours").textContent = b.hours;
+      $("#miniOwnerWa").textContent = STATE.owner.whatsapp;
+      $("#miniUpi").textContent = STATE.payments.upiId;
+
+      $("#adminOwnerWaPreview").textContent = STATE.owner.whatsapp;
+      $("#adminSalonNameTop").textContent = b.salonName;
+
+      // Social buttons
+      const waBtn = $("#waContactBtn");
+      const waMsg = `Hello ${b.salonName} Salon, I would like to know more about your services.`;
+      waBtn.href = waLink(STATE.owner.whatsapp, waMsg);
+
+      $("#instaBtn").href = b.social.instagram || "https://instagram.com/";
+      $("#fbBtn").href = b.social.facebook || "https://facebook.com/";
+
+      // Footer social buttons
+      $("#sInstagram").onclick = () => window.open(b.social.instagram || "https://instagram.com/", "_blank", "noopener");
+      $("#sFacebook").onclick = () => window.open(b.social.facebook || "https://facebook.com/", "_blank", "noopener");
+      $("#sWhatsApp").onclick = () => window.open(waLink(STATE.owner.whatsapp, waMsg), "_blank", "noopener");
+
+      // Hero background (admin upload)
+      const heroBg = $("#heroBg");
+      if (b.heroImage){
+        // overlay is already in CSS; set actual image variable
+        heroBg.style.setProperty("--hero-image", `url('${b.heroImage}')`);
+      } else {
+        heroBg.style.removeProperty("--hero-image");
+      }
+
+      // Map embed
+      const iframe = $("#mapFrame");
+      const placeholder = $("#mapPlaceholder");
+      if (b.mapEmbedUrl && b.mapEmbedUrl.trim()){
+        iframe.src = b.mapEmbedUrl.trim();
+        iframe.style.display = "block";
+        placeholder.style.display = "none";
+      } else {
+        iframe.removeAttribute("src");
+        iframe.style.display = "none";
+        placeholder.style.display = "flex";
+      }
+    }
+
+    function renderPromos(){
+      const slides = $("#slides");
+      const dots = $("#promoDots");
+      slides.innerHTML = "";
+      dots.innerHTML = "";
+
+      const promos = (STATE.promos || []).slice(0, 12);
+      if (!promos.length){
+        slides.innerHTML = `<div class="slide"><div class="content"><span class="tag">No promos</span><h3>Add offers in Admin</h3><p>Admin → Promotions</p></div></div>`;
+        return;
+      }
+
+      promos.forEach((p, idx)=>{
+        const el = document.createElement("div");
+        el.className = "slide";
+        el.innerHTML = `
+          <div class="media" style="--img:url('${p.img||""}')"></div>
+          <div class="content">
+            <span class="tag">${htmlEscape(p.tag || "Offer")}</span>
+            <h3>${htmlEscape(p.title || "")}</h3>
+            <p>${htmlEscape(p.subtitle || "")}</p>
+          </div>`;
+        slides.appendChild(el);
+
+        const d = document.createElement("div");
+        d.className = "dot" + (idx===0 ? " active" : "");
+        d.title = "Go to slide " + (idx+1);
+        d.addEventListener("click", ()=> setPromoIndex(idx));
+        dots.appendChild(d);
+      });
+
+      promoIndex = Math.min(promoIndex, promos.length-1);
+      setPromoIndex(promoIndex, true);
+    }
+
+    function renderServices(){
+      const grid = $("#servicesGrid");
+      grid.innerHTML = "";
+      const services = STATE.services || [];
+      services.forEach(s=>{
+        const checked = selection.serviceIds.has(s.id);
+        const el = document.createElement("div");
+        el.className = "service-card";
+        el.innerHTML = `
+          <h4>${htmlEscape(s.name)}</h4>
+          <p>${htmlEscape(s.desc)}</p>
+          <div class="service-meta">
+            <span class="price">${fmtMoney(s.price)}</span>
+            <span class="duration">${Number(s.duration||0)} min</span>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="svc_${s.id}" ${checked ? "checked":""} />
+            <label for="svc_${s.id}">Select Service</label>
+          </div>
+        `;
+        el.querySelector("input").addEventListener("change", (e)=>{
+          if (e.target.checked) selection.serviceIds.add(s.id);
+          else selection.serviceIds.delete(s.id);
+          renderSummary();
+        });
+        grid.appendChild(el);
+      });
+    }
+
+    function renderStylists(){
+      const grid = $("#stylistsGrid");
+      grid.innerHTML = "";
+      const list = STATE.stylists || [];
+      if (!list.length){
+        grid.innerHTML = `<div class="card soft" style="padding:16px;border-radius:18px;border:1px solid rgba(0,0,0,.07)">No stylists yet. Add in Admin → Stylists.</div>`;
+        return;
+      }
+      list.forEach(st=>{
+        const el = document.createElement("div");
+        el.className = "stylist";
+        const initials = (st.name||"").split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||"").join("") || "DS";
+        const photo = st.photo ? `<img src="${st.photo}" alt="${htmlEscape(st.name)}" style="width:100%;height:100%;object-fit:cover"/>` : `<div style="font-weight:950">${initials}</div>`;
+        el.innerHTML = `
+          <div class="avatar">${photo}</div>
+          <div class="info">
+            <b>${htmlEscape(st.name || "Stylist")}</b>
+            <span>${htmlEscape(st.role || "")} • ${htmlEscape(st.exp || "")}</span>
+            <small>${htmlEscape(st.specialties || "")}</small>
+          </div>
+        `;
+        grid.appendChild(el);
+      });
+    }
+
+    function renderGallery(){
+      const grid = $("#galleryGrid");
+      grid.innerHTML = "";
+      const items = STATE.gallery || [];
+      items.forEach(g=>{
+        const el = document.createElement("div");
+        el.className = "gitem";
+        el.style.setProperty("--img", `url('${g.img}')`);
+        el.innerHTML = `<div class="img" style="--img:url('${g.img}')"></div><div class="gcap">${htmlEscape(g.title||"")}</div>`;
+        el.addEventListener("click", ()=>{
+          $("#galleryModalTitle").textContent = g.title || "Preview";
+          $("#galleryModalImg").src = g.img;
+          showModal("#galleryModal");
+        });
+        grid.appendChild(el);
+      });
+    }
+
+    function computeSelection(){
+      const services = STATE.services || [];
+      const chosen = services.filter(s=> selection.serviceIds.has(s.id));
+      const total = chosen.reduce((a,s)=>a + Number(s.price||0), 0);
+      const duration = chosen.reduce((a,s)=>a + Number(s.duration||0), 0);
+      return {chosen, total, duration};
+    }
+
+    function renderSummary(){
+      const {chosen, total, duration} = computeSelection();
+      $("#selCount").textContent = String(chosen.length);
+      $("#selTotal").textContent = fmtMoney(total);
+      $("#selDuration").textContent = `${duration} min`;
+
+      const ul = $("#selList");
+      ul.innerHTML = "";
+      if (!chosen.length){
+        ul.innerHTML = `<li>Select services to see summary.</li>`;
+      } else {
+        chosen.forEach(s=>{
+          const li = document.createElement("li");
+          li.textContent = `${s.name} (${fmtMoney(s.price)}, ${s.duration} min)`;
+          ul.appendChild(li);
+        });
+      }
+
+      // Update payment view (amount depends on total)
+      renderPayDetails();
+    }
+
+    function setDateInputToToday(){
+      const d = todayStr();
+      selection.date = selection.date && selection.date >= d ? selection.date : d;
+      const dateInput = $("#dateInput");
+      dateInput.min = d;
+      dateInput.value = selection.date;
+    }
+
+    function isDateBlocked(date){
+      return (STATE.availability.blockedDates || []).includes(date);
+    }
+
+    function isSlotBlocked(date, slot){
+      const blocked = STATE.availability.blockedSlots?.[date] || [];
+      return blocked.includes(slot);
+    }
+
+    function isSlotBooked(date, slot){
+      const booked = STATE.availability.bookedSlots?.[date] || [];
+      // Also ensure bookings reflect booked slots:
+      return booked.includes(slot);
+    }
+
+    function renderSlots(){
+      const wrap = $("#slots");
+      wrap.innerHTML = "";
+      const date = selection.date;
+      const note = $("#slotNote");
+
+      if (!date){
+        note.textContent = "Select a date to view slots.";
+        return;
+      }
+
+      if (isDateBlocked(date)){
+        note.innerHTML = `<span style="color:var(--bad);font-weight:900">This date is blocked (Salon closed).</span>`;
+      } else {
+        note.textContent = "Tap an available slot to select.";
+      }
+
+      const slots = STATE.availability.slots || [];
+      slots.forEach(s=>{
+        const isDisabled = isDateBlocked(date) || isSlotBlocked(date, s) || isSlotBooked(date, s);
+        const el = document.createElement("div");
+        el.className = "slot" + (selection.timeSlot === s ? " selected" : "") + (isDisabled ? " disabled" : "");
+        el.textContent = s;
+        el.title = isDisabled ? (isDateBlocked(date) ? "Date blocked" : (isSlotBooked(date, s) ? "Already booked" : "Blocked by owner")) : "Available";
+        el.addEventListener("click", ()=>{
+          if (isDisabled) return;
+          selection.timeSlot = (selection.timeSlot === s) ? "" : s;
+          renderSlots();
+        });
+        wrap.appendChild(el);
+      });
+    }
+
+    function renderPayTabs(){
+      // Payment choice chips
+      const tabs = $("#payTabs");
+      tabs.innerHTML = "";
+      const items = [
+        {id:"pay_at_salon", label:"Pay at Salon"},
+        {id:"upi", label:"UPI"},
+        {id:"card_sim", label:"Card (Simulation)"},
+        {id:"razorpay_link", label:"Razorpay Link"},
+        {id:"razorpay_sim", label:"Razorpay (Simulation)"}
+      ];
+      items.forEach(it=>{
+        const c = document.createElement("div");
+        c.className = "chip" + (selection.payMode===it.id ? " active" : "");
+        c.textContent = it.label;
+        c.addEventListener("click", ()=>{
+          selection.payMode = it.id;
+          renderPayTabs();
+          renderPayDetails();
+        });
+        tabs.appendChild(c);
+      });
+    }
+
+    function buildUPIDeepLink({upiId, name, amount, note}){
+      const url = new URL("upi://pay");
+      url.searchParams.set("pa", upiId || "");
+      url.searchParams.set("pn", name || "Daffodil Salon");
+      if (amount && Number(amount)>0) url.searchParams.set("am", String(Number(amount).toFixed(2)));
+      url.searchParams.set("cu", "INR");
+      url.searchParams.set("tn", note || "Salon Appointment");
+      return url.toString();
+    }
+
+    function renderPayDetails(){
+      const box = $("#payDetails");
+      const {chosen, total} = computeSelection();
+      const b = STATE.business;
+      const pay = STATE.payments;
+
+      const noteLine = `Appointment: ${chosen.map(s=>s.name).join(", ") || "Services"} • ${selection.date || ""} • ${selection.timeSlot || ""}`;
+      const upiLink = buildUPIDeepLink({
+        upiId: pay.upiId,
+        name: b.salonName + " Salon",
+        amount: total || 0,
+        note: noteLine.slice(0, 70)
+      });
+
+      if (selection.payMode === "pay_at_salon"){
+        box.innerHTML = `
+          <div class="note">
+            Pay at the salon after your service. Your appointment will be confirmed immediately.
+          </div>`;
+        return;
+      }
+
+      if (selection.payMode === "upi"){
+        const qr = pay.upiQr ? `<img src="${pay.upiQr}" alt="UPI QR" style="width:180px;height:180px;border-radius:18px;border:1px solid rgba(0,0,0,.08);background:#fff;box-shadow:0 12px 35px rgba(74,16,32,.10);object-fit:cover"/>`
+                             : `<div class="card soft" style="width:180px;height:180px;border-radius:18px;border:1px dashed rgba(74,16,32,.25);display:flex;align-items:center;justify-content:center;padding:12px;text-align:center;color:rgba(31,26,26,.70);box-shadow:none;background:rgba(255,255,255,.78)">
+                                  Upload UPI QR in<br/><b>Admin → Payments</b>
+                                </div>`;
+
+        box.innerHTML = `
+          <div class="note">
+            Tap below to open your UPI app with amount auto-filled. After payment, enter UTR/reference (optional) and confirm booking.
+          </div>
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:12px">
+            ${qr}
+            <div style="min-width: 240px; max-width: 420px">
+              <div class="summary">
+                <div class="line"><small>UPI ID</small><b>${htmlEscape(pay.upiId || "")}</b></div>
+                <div class="line"><small>Amount</small><b>${fmtMoney(total)}</b></div>
+              </div>
+              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+                <a class="btn primary" href="${upiLink}" id="upiOpenBtn">
+                  <span class="i" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v10m0 0l4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </span>
+                  Pay in UPI App
+                </a>
+                <button class="btn ghost" type="button" id="copyUpiLink">Copy UPI Link</button>
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="utrInput">UTR / Reference (optional)</label>
+                <input id="utrInput" type="text" placeholder="Enter UTR if you have it" />
+              </div>
+              <div class="note">
+                Important: A single HTML file cannot verify bank receipt automatically. Owner can mark paid in Admin after checking payment.
+              </div>
+            </div>
+          </div>
+        `;
+
+        const utrInput = $("#utrInput");
+        if (utrInput){
+          utrInput.value = selection.utr || "";
+          utrInput.addEventListener("input", ()=> selection.utr = utrInput.value.trim());
+        }
+        const copyBtn = $("#copyUpiLink");
+        if (copyBtn){
+          copyBtn.onclick = async ()=>{
+            try{
+              await navigator.clipboard.writeText(upiLink);
+              toast("UPI link copied.");
+            }catch{
+              toast("Copy failed. Your browser may block clipboard.");
+            }
+          };
+        }
+        return;
+      }
+
+      if (selection.payMode === "razorpay_link"){
+        const link = (STATE.payments.razorpayPaymentLink || "").trim();
+        box.innerHTML = `
+          <div class="note">
+            If the owner has configured a Razorpay hosted payment link, you can pay securely via that link (real settlement happens in the owner's Razorpay account).
+          </div>
+          <div class="summary" style="margin-top:12px">
+            <div class="line"><small>Amount</small><b>${fmtMoney(total)}</b></div>
+            <div class="line"><small>Link</small><b>${link ? "Configured" : "Not configured"}</b></div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+            <a class="btn primary" ${link ? `href="${link}" target="_blank" rel="noopener"` : ""} id="rzpLinkBtn" style="${link ? "" : "pointer-events:none;opacity:.55"}">
+              Open Razorpay Payment Link
+            </a>
+            <div class="note" style="margin-top:6px">
+              After payment, you can optionally paste payment ID/UTR in the UTR field (UPI mode) or just confirm booking and the owner will verify.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (selection.payMode === "card_sim"){
+        box.innerHTML = `
+          <div class="note">
+            Card payment is shown as a simulation in offline single-file mode. For real card processing, owner must use a gateway + server verification.
+          </div>
+          <div class="row2" style="margin-top:10px">
+            <div class="field"><label>Card Number</label><input placeholder="1234 5678 9012 3456" /></div>
+            <div class="field"><label>Expiry</label><input placeholder="MM/YY" /></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Name on Card</label><input placeholder="Your name" /></div>
+            <div class="field"><label>CVV</label><input placeholder="***" /></div>
+          </div>
+          <button class="btn primary" type="button" id="cardSimPay" style="margin-top:10px">Simulate Payment Success</button>
+        `;
+        $("#cardSimPay").onclick = ()=> toast("Payment simulated as successful.");
+        return;
+      }
+
+      // razorpay_sim
+      box.innerHTML = `
+        <div class="note">
+          Razorpay simulation button (no backend). For real Razorpay checkout, you need server-side order creation & signature verification.
+          Use Admin → Payments to add a hosted Razorpay Payment Link for real payments without editing code.
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px">
+          <button class="btn primary" type="button" id="rzpSimBtn">Simulate Razorpay Success</button>
+          <button class="btn ghost" type="button" id="rzpSimFail">Simulate Failure</button>
+        </div>
+      `;
+      $("#rzpSimBtn").onclick = ()=> toast("Razorpay simulated as successful.");
+      $("#rzpSimFail").onclick = ()=> toast("Payment simulated as failed.");
+    }
+
+    /* =========================
+       MODALS
+    ========================== */
+    function showModal(sel){
+      const m = $(sel);
+      m.classList.add("show");
+      m.setAttribute("aria-hidden","false");
+      // Close on backdrop click
+      const onClick = (e)=>{
+        if (e.target === m){
+          hideModal(sel);
+        }
+      };
+      m._backdrop = onClick;
+      m.addEventListener("click", onClick);
+    }
+    function hideModal(sel){
+      const m = $(sel);
+      m.classList.remove("show");
+      m.setAttribute("aria-hidden","true");
+      if (m._backdrop) m.removeEventListener("click", m._backdrop);
+      m._backdrop = null;
+    }
+
+    /* =========================
+       BOOKING FLOW
+    ========================== */
+    function validateBooking(){
+      const {chosen, total} = computeSelection();
+      if (!chosen.length) return "Please select at least one service.";
+      if (!selection.date) return "Please choose an appointment date.";
+      if (isDateBlocked(selection.date)) return "This date is blocked. Please choose another date.";
+      if (!selection.timeSlot) return "Please choose a time slot.";
+      if (isSlotBooked(selection.date, selection.timeSlot) || isSlotBlocked(selection.date, selection.timeSlot)) return "Selected slot is not available.";
+      const name = $("#nameInput").value.trim();
+      const phone = $("#phoneInput").value.trim();
+      const email = $("#emailInput").value.trim();
+      if (!name) return "Name is required.";
+      if (!phone) return "Phone number is required.";
+      if (!email) return "Email is required.";
+      // Basic email pattern
+      if (!/^\S+@\S+\.\S+$/.test(email)) return "Please enter a valid email.";
+      // Basic phone pattern
+      if (phone.replace(/[^\d]/g,"").length < 10) return "Please enter a valid phone number.";
+      if (total <= 0) return "Total price must be greater than 0.";
+      return "";
+    }
+
+    function bookingWhatsAppMessage(booking){
+      const b = STATE.business;
+      return `Hello, my appointment at your beauty salon is confirmed.\n`+
+             `Salon: ${b.salonName}\n`+
+             `Name: ${booking.customer.name}\n`+
+             `Phone: ${booking.customer.phone}\n`+
+             `Services: ${booking.services.map(s=>s.name).join(", ")}\n`+
+             `Date: ${booking.date}\n`+
+             `Time: ${booking.time}\n`+
+             `Total Price: ₹${booking.totalPrice}\n`+
+             `Payment: ${booking.payment.method}${booking.payment.utr ? " (UTR: "+booking.payment.utr+")" : ""}`;
+    }
+
+    function ownerWhatsAppMessage(booking){
+      const b = STATE.business;
+      return `New booking received — ${b.salonName}\n`+
+             `Name: ${booking.customer.name}\n`+
+             `Phone: ${booking.customer.phone}\n`+
+             `Services: ${booking.services.map(s=>s.name).join(", ")}\n`+
+             `Date: ${booking.date}\n`+
+             `Time: ${booking.time}\n`+
+             `Total: ₹${booking.totalPrice}\n`+
+             `Payment: ${booking.payment.method}${booking.payment.utr ? " (UTR: "+booking.payment.utr+")" : ""}\n`+
+             `Booking ID: ${booking.id}`;
+    }
+
+    function buildCalendarEvent(booking){
+      const baseDate = booking.date;
+      const {h,m} = parseTimeTo24(booking.time);
+      const start = new Date(baseDate + "T00:00:00");
+      start.setHours(h, m, 0, 0);
+
+      // Use total duration; if 0, default 60
+      const dur = Math.max(30, Number(booking.totalDuration || 60));
+      const end = addMinutes(start, dur);
+
+      const title = `${STATE.business.salonName} — ${booking.services.map(s=>s.name).join(", ")}`;
+      const details =
+        `Customer: ${booking.customer.name}\n`+
+        `Phone: ${booking.customer.phone}\n`+
+        `Email: ${booking.customer.email}\n`+
+        `Services: ${booking.services.map(s=>`${s.name} (${fmtMoney(s.price)})`).join(", ")}\n`+
+        `Total: ${fmtMoney(booking.totalPrice)}\n`+
+        `Payment: ${booking.payment.method}${booking.payment.utr ? " (UTR: "+booking.payment.utr+")" : ""}\n`+
+        `Booking ID: ${booking.id}`;
+      const location = STATE.business.address;
+
+      return googleCalLink({
+        title,
+        details,
+        location,
+        startISO: start.toISOString(),
+        endISO: end.toISOString()
+      });
+    }
+
+    function requestAdminNotificationPermission(){
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "default"){
+        Notification.requestPermission().catch(()=>{});
+      }
+    }
+
+    function maybeNotifyInBrowser(booking){
+      // Works only on the same device/browser where admin is open and permission granted.
+      if (!("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
+      try{
+        new Notification("New Booking", {
+          body: `${booking.customer.name} • ${booking.date} ${booking.time} • ${fmtMoney(booking.totalPrice)}`,
+        });
+      }catch{}
+    }
+
+    function confirmBooking(){
+      const err = validateBooking();
+      if (err){
+        toast(err);
+        return;
+      }
+
+      const {chosen, total, duration} = computeSelection();
+
+      const booking = {
+        id: uid("bk"),
+        createdAt: nowISO(),
+        status: "confirmed", // confirmed | cancelled
+        date: selection.date,
+        time: selection.timeSlot,
+        services: chosen.map(s=>({id:s.id, name:s.name, price:s.price, duration:s.duration})),
+        totalPrice: total,
+        totalDuration: duration,
+        customer: {
+          name: $("#nameInput").value.trim(),
+          phone: $("#phoneInput").value.trim(),
+          email: $("#emailInput").value.trim()
+        },
+        payment: {
+          method: selection.payMode,
+          status: (selection.payMode === "pay_at_salon") ? "pending" : "unverified",
+          utr: selection.utr || ""
+        }
+      };
+
+      // Persist booking + mark slot booked
+      withState(st=>{
+        st.bookings.unshift(booking);
+        st.availability.bookedSlots[booking.date] = st.availability.bookedSlots[booking.date] || [];
+        if (!st.availability.bookedSlots[booking.date].includes(booking.time)){
+          st.availability.bookedSlots[booking.date].push(booking.time);
+        }
+      });
+
+      // Update UI immediately (renderAll already called inside saveState)
+      // Clear selection for next booking
+      selection.timeSlot = "";
+      selection.utr = "";
+      selection.serviceIds.clear();
+      renderServices();
+      renderSummary();
+      renderSlots();
+
+      // Confirmation modal
+      const custMsg = bookingWhatsAppMessage(booking);
+      const ownerMsg = ownerWhatsAppMessage(booking);
+      const calUrl = buildCalendarEvent(booking);
+
+      const b = STATE.business;
+      const ownerWa = STATE.owner.whatsapp;
+
+      $("#confirmBody").innerHTML = `
+        <div class="panel" style="box-shadow:none">
+          <div class="summary">
+            <div class="line"><small>Booking ID</small><b>${htmlEscape(booking.id)}</b></div>
+            <div class="line"><small>Customer</small><b>${htmlEscape(booking.customer.name)}</b></div>
+            <div class="line"><small>Date & Time</small><b>${htmlEscape(booking.date)} • ${htmlEscape(booking.time)}</b></div>
+            <div class="line"><small>Services</small><b>${htmlEscape(booking.services.map(s=>s.name).join(", "))}</b></div>
+            <div class="line"><small>Total</small><b>${fmtMoney(booking.totalPrice)}</b></div>
+            <div class="line"><small>Payment</small><b>${htmlEscape(booking.payment.method)}${booking.payment.utr ? " • UTR: "+htmlEscape(booking.payment.utr) : ""}</b></div>
+          </div>
+
+          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
+            <a class="btn primary" target="_blank" rel="noopener" href="${waLink(booking.customer.phone, custMsg)}" id="waCustomerBtn">
+              Send Booking Confirmation via WhatsApp
+            </a>
+            <a class="btn" target="_blank" rel="noopener" href="${waLink(ownerWa, ownerMsg)}" id="waOwnerBtn">
+              Notify Owner on WhatsApp
+            </a>
+            <a class="btn ghost" target="_blank" rel="noopener" href="${calUrl}">
+              Add Appointment to Google Calendar
+            </a>
+          </div>
+
+          <div class="note" style="margin-top:10px">
+            Note: Automatic WhatsApp sending is not possible in a single offline HTML file. These buttons open WhatsApp with a pre-filled message.
+          </div>
+        </div>
+      `;
+      showModal("#confirmModal");
+      toast("Booking confirmed and saved.");
+
+      // Optional in-browser notification (works only on same device/browser)
+      maybeNotifyInBrowser(booking);
+
+      // Attempt to auto-open owner WhatsApp in a user-gesture context:
+      // Most browsers block popups unless triggered by a direct click. Here we already are in a click handler.
+      // If blocked, the button remains available in the modal.
+      try{
+        window.open(waLink(ownerWa, ownerMsg), "_blank", "noopener");
+      }catch{}
+    }
+
+    /* =========================
+       ADMIN AUTH
+    ========================== */
+    function setAuthed(val){
+      if (val) sessionStorage.setItem(AUTH_KEY, "1");
+      else sessionStorage.removeItem(AUTH_KEY);
+    }
+    function isAuthed(){
+      return sessionStorage.getItem(AUTH_KEY) === "1";
+    }
+
+    async function verifyAdminPassword(pass){
+      const salt = STATE.admin.passSalt;
+      const hash = await sha256(salt + "|" + pass);
+      return hash === STATE.admin.passHash;
+    }
+
+    async function adminLogin(){
+      const u = $("#adminUser").value.trim();
+      const p = $("#adminPass").value;
+      if (u !== (STATE.admin.username || "admin")){
+        toast("Invalid username.");
+        return;
+      }
+      const ok = await verifyAdminPassword(p);
+      if (!ok){
+        toast("Invalid password.");
+        return;
+      }
+      setAuthed(true);
+      hideModal("#adminModal");
+      openAdminDashboard();
+      toast("Welcome, Admin.");
+      requestAdminNotificationPermission();
+    }
+
+    async function changeAdminPassword(){
+      const cur = $("#cpCurrent").value;
+      const nw = $("#cpNew").value;
+      if (!nw || nw.length < 6){
+        toast("New password must be at least 6 characters.");
+        return;
+      }
+      const ok = await verifyAdminPassword(cur);
+      if (!ok){
+        toast("Current password is incorrect.");
+        return;
+      }
+      withState(async st=>{
+        // (This mutator is async-safe because we call it immediately, but we must handle carefully.)
+      });
+      // Since withState isn't async, do it manually:
+      const st = structuredClone(STATE);
+      const salt = randSalt();
+      const hash = await sha256(salt + "|" + nw);
+      st.admin.passSalt = salt;
+      st.admin.passHash = hash;
+      saveState(st);
+      $("#cpCurrent").value = "";
+      $("#cpNew").value = "";
+      $("#changePasswordPanel").style.display = "none";
+      toast("Password updated.");
+    }
+
+    function otpStatus(){
+      const {code, expiresAt} = STATE.otp || {code:"", expiresAt:0};
+      const ok = code && Date.now() < expiresAt;
+      return {ok, code, expiresAt};
+    }
+
+    function renderOTPPanel(){
+      const s = otpStatus();
+      $("#otpDisplay").textContent = s.code ? s.code : "—";
+      $("#otpExpiry").textContent = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : "—";
+      $("#otpSendWhatsApp").disabled = !s.ok;
+    }
+
+    function generateOTP(){
+      const code = String(Math.floor(100000 + Math.random()*900000));
+      const expiresAt = Date.now() + 5*60*1000; // 5 minutes
+      withState(st=>{
+        st.otp.code = code;
+        st.otp.expiresAt = expiresAt;
+      });
+      renderOTPPanel();
+      toast("OTP generated (demo).");
+    }
+
+    function openOTPWhatsApp(){
+      const s = otpStatus();
+      if (!s.ok){
+        toast("OTP missing or expired. Generate again.");
+        return;
+      }
+      const msg = `Daffodil Admin OTP: ${s.code}\nValid for 5 minutes.\n(Generated from offline website — demo OTP.)`;
+      window.open(waLink(STATE.owner.whatsapp, msg), "_blank", "noopener");
+      toast("WhatsApp opened with OTP text.");
+    }
+
+    async function otpResetPassword(){
+      const s = otpStatus();
+      if (!s.ok){
+        toast("OTP expired. Generate a new OTP.");
+        return;
+      }
+      const otp = $("#otpInput").value.trim();
+      const nw = $("#otpNewPass").value;
+      if (otp !== s.code){
+        toast("Incorrect OTP.");
+        return;
+      }
+      if (!nw || nw.length < 6){
+        toast("New password must be at least 6 characters.");
+        return;
+      }
+
+      const st = structuredClone(STATE);
+      const salt = randSalt();
+      const hash = await sha256(salt + "|" + nw);
+      st.admin.passSalt = salt;
+      st.admin.passHash = hash;
+
+      // Invalidate OTP
+      st.otp.code = "";
+      st.otp.expiresAt = 0;
+
+      saveState(st);
+      renderOTPPanel();
+      $("#otpInput").value = "";
+      $("#otpNewPass").value = "";
+      $("#forgotPasswordPanel").style.display = "none";
+      toast("Password reset successfully.");
+    }
+
+    /* =========================
+       ADMIN DASHBOARD RENDER
+    ========================== */
+    const ADMIN_TABS = [
+      {id:"overview", label:"Overview"},
+      {id:"bookings", label:"Bookings"},
+      {id:"services", label:"Services"},
+      {id:"stylists", label:"Stylists"},
+      {id:"gallery", label:"Gallery"},
+      {id:"promos", label:"Promotions"},
+      {id:"availability", label:"Availability"},
+      {id:"business", label:"Business Info"},
+      {id:"payments", label:"Payments"}
+    ];
+    let adminTab = "overview";
+
+    function renderAdminTabs(){
+      const wrap = $("#adminTabs");
+      wrap.innerHTML = "";
+      ADMIN_TABS.forEach(t=>{
+        const el = document.createElement("div");
+        el.className = "tab" + (adminTab===t.id ? " active" : "");
+        el.textContent = t.label;
+        el.addEventListener("click", ()=>{
+          adminTab = t.id;
+          renderAdminTabs();
+          renderAdminView();
+        });
+        wrap.appendChild(el);
+      });
+    }
+
+    function bookingsUpcoming(){
+      const today = todayStr();
+      return (STATE.bookings || []).filter(b=>b.status!=="cancelled" && b.date >= today);
+    }
+    function totalRevenue(){
+      // Only counts those marked paid by admin
+      return (STATE.bookings || []).filter(b=>b.status!=="cancelled" && b.payment?.status==="paid")
+        .reduce((a,b)=>a + Number(b.totalPrice||0), 0);
+    }
+
+    function renderAdminKPIs(){
+      $("#adminPillUpcoming").textContent = `Upcoming: ${bookingsUpcoming().length}`;
+      $("#adminPillRevenue").textContent = `Revenue: ${fmtMoney(totalRevenue())}`;
+    }
+
+    function renderAdminOverview(){
+      const view = $("#adminView");
+      const today = todayStr();
+      const all = STATE.bookings || [];
+      const todayBookings = all.filter(b=>b.status!=="cancelled" && b.date === today);
+      const upcoming = bookingsUpcoming().slice(0,10);
+
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Quick Stats</h3>
+          <div class="grid cols-3" style="margin-top:12px">
+            <div class="service-card" style="box-shadow:none">
+              <h4>Today’s Bookings</h4>
+              <p>${todayBookings.length} appointment(s) scheduled for today.</p>
+              <div class="service-meta"><span class="price">${todayBookings.length}</span><span class="duration">count</span></div>
+            </div>
+            <div class="service-card" style="box-shadow:none">
+              <h4>Upcoming</h4>
+              <p>${bookingsUpcoming().length} future appointment(s).</p>
+              <div class="service-meta"><span class="price">${bookingsUpcoming().length}</span><span class="duration">count</span></div>
+            </div>
+            <div class="service-card" style="box-shadow:none">
+              <h4>Paid Revenue</h4>
+              <p>Only bookings marked paid by admin are counted.</p>
+              <div class="service-meta"><span class="price">${fmtMoney(totalRevenue())}</span><span class="duration">paid</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Upcoming Bookings</h3>
+          <div class="note" style="margin-top:8px">Bookings update instantly when a customer confirms.</div>
+          <div style="margin-top:12px; overflow:auto">
+            ${renderBookingsTable(upcoming)}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBookingsTable(list){
+      const rows = (list||[]).map(b=>{
+        const paid = (b.payment?.status==="paid");
+        const statusPill =
+          b.status==="cancelled"
+          ? `<span class="pill" style="background:rgba(180,35,24,.10);border-color:rgba(180,35,24,.18);color:rgba(180,35,24,.95)">Cancelled</span>`
+          : `<span class="pill" style="background:rgba(14,122,70,.08);border-color:rgba(14,122,70,.18);color:rgba(14,122,70,.95)">Confirmed</span>`;
+
+        const payPill =
+          paid
+          ? `<span class="pill" style="background:rgba(14,122,70,.08);border-color:rgba(14,122,70,.18);color:rgba(14,122,70,.95)">Paid</span>`
+          : `<span class="pill">Unpaid</span>`;
+
+        return `
+          <tr>
+            <td><b>${htmlEscape(b.customer?.name||"")}</b><div class="note">${htmlEscape(b.customer?.phone||"")}<br/>${htmlEscape(b.customer?.email||"")}</div></td>
+            <td><b>${htmlEscape(b.date)} • ${htmlEscape(b.time)}</b><div class="note">${htmlEscape(b.services?.map(s=>s.name).join(", ")||"")}</div></td>
+            <td><b>${fmtMoney(b.totalPrice)}</b><div class="note">${htmlEscape(b.payment?.method||"")}${b.payment?.utr ? "<br/>UTR: "+htmlEscape(b.payment.utr) : ""}</div></td>
+            <td>${statusPill}<div style="margin-top:8px">${payPill}</div></td>
+            <td>
+              <div class="actions">
+                <button class="mini ok" data-act="paid" data-id="${b.id}">Mark Paid</button>
+                <button class="mini" data-act="wa" data-id="${b.id}">WhatsApp</button>
+                <button class="mini danger" data-act="cancel" data-id="${b.id}">Cancel</button>
+                <button class="mini danger" data-act="delete" data-id="${b.id}">Delete</button>
+              </div>
+              <div class="note" style="margin-top:8px">ID: ${htmlEscape(b.id)}</div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      if (!rows){
+        return `<div class="note">No bookings found.</div>`;
+      }
+
+      return `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Date & Services</th>
+              <th>Total & Payment</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function renderAdminBookings(){
+      const view = $("#adminView");
+      const list = STATE.bookings || [];
+      view.innerHTML = `
+        <div class="panel">
+          <h3>All Bookings</h3>
+          <div class="row2" style="margin-top:12px">
+            <div class="field">
+              <label for="bkFilterDate">Filter by date</label>
+              <input id="bkFilterDate" type="date" value="" />
+            </div>
+            <div class="field">
+              <label for="bkSearch">Search</label>
+              <input id="bkSearch" type="text" placeholder="Name / phone / email / service" />
+            </div>
+          </div>
+          <div class="note" style="margin-top:8px">
+            Tip: Mark paid after you confirm the payment in your UPI/Razorpay app.
+          </div>
+          <div style="margin-top:12px; overflow:auto" id="bkTableWrap"></div>
+        </div>
+      `;
+
+      const filterDate = $("#bkFilterDate");
+      const search = $("#bkSearch");
+      const wrap = $("#bkTableWrap");
+
+      const rer = ()=>{
+        const d = (filterDate.value||"").trim();
+        const q = (search.value||"").toLowerCase().trim();
+        let arr = list.slice();
+        if (d) arr = arr.filter(b=>b.date===d);
+        if (q){
+          arr = arr.filter(b=>{
+            const hay = [
+              b.customer?.name, b.customer?.phone, b.customer?.email,
+              (b.services||[]).map(s=>s.name).join(", "),
+              b.id
+            ].join(" ").toLowerCase();
+            return hay.includes(q);
+          });
+        }
+        wrap.innerHTML = renderBookingsTable(arr);
+        attachBookingRowActions(wrap);
+      };
+
+      filterDate.addEventListener("input", rer);
+      search.addEventListener("input", rer);
+      rer();
+    }
+
+    function attachBookingRowActions(root){
+      root.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const id = btn.dataset.id;
+        const booking = (STATE.bookings||[]).find(b=>b.id===id);
+        if (!booking) return;
+
+        if (act==="wa"){
+          window.open(waLink(STATE.owner.whatsapp, ownerWhatsAppMessage(booking)), "_blank", "noopener");
+          return;
+        }
+        if (act==="paid"){
+          withState(st=>{
+            const b = st.bookings.find(x=>x.id===id);
+            if (b){
+              b.payment = b.payment || {};
+              b.payment.status = "paid";
+            }
+          });
+          toast("Marked as paid.");
+          return;
+        }
+        if (act==="cancel"){
+          if (!confirm("Cancel this booking?")) return;
+          withState(st=>{
+            const b = st.bookings.find(x=>x.id===id);
+            if (b){
+              b.status = "cancelled";
+            }
+            // free the slot: remove from bookedSlots
+            const date = booking.date;
+            const t = booking.time;
+            const arr = st.availability.bookedSlots[date] || [];
+            st.availability.bookedSlots[date] = arr.filter(x=>x!==t);
+          });
+          toast("Booking cancelled and slot freed.");
+          return;
+        }
+        if (act==="delete"){
+          if (!confirm("Delete this booking permanently from LocalStorage?")) return;
+          withState(st=>{
+            st.bookings = st.bookings.filter(x=>x.id!==id);
+            // also free the slot
+            const date = booking.date;
+            const t = booking.time;
+            const arr = st.availability.bookedSlots[date] || [];
+            st.availability.bookedSlots[date] = arr.filter(x=>x!==t);
+          });
+          toast("Booking deleted.");
+          return;
+        }
+      }, {once:true});
+    }
+
+    function renderAdminServices(){
+      const view = $("#adminView");
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Services</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+            <button class="btn primary" id="svcAdd" type="button">Add Service</button>
+          </div>
+          <div style="margin-top:12px; overflow:auto" id="svcTableWrap"></div>
+        </div>
+      `;
+
+      const wrap = $("#svcTableWrap");
+      const rer = ()=>{
+        const rows = (STATE.services||[]).map(s=>`
+          <tr>
+            <td><b>${htmlEscape(s.name)}</b><div class="note">${htmlEscape(s.desc)}</div></td>
+            <td><b>${fmtMoney(s.price)}</b></td>
+            <td><b>${Number(s.duration||0)} min</b></td>
+            <td>
+              <div class="actions">
+                <button class="mini" data-act="edit" data-id="${s.id}">Edit</button>
+                <button class="mini danger" data-act="del" data-id="${s.id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+
+        wrap.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Name</th><th>Price</th><th>Duration</th><th>Actions</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="4" class="note">No services. Add one.</td></tr>`}</tbody>
+          </table>
+        `;
+      };
+
+      function openServiceEditor(service){
+        const isEdit = !!service;
+        const m = document.createElement("div");
+        m.className = "modal show";
+        m.innerHTML = `
+          <div class="modal-card" style="width:min(860px,96vw)">
+            <div class="modal-head">
+              <b>${isEdit ? "Edit Service" : "Add Service"}</b>
+              <button class="x" type="button" aria-label="Close">
+                <span class="i xl" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="form">
+                <div class="row2">
+                  <div class="field"><label>Name</label><input id="sName" value="${htmlEscape(service?.name||"")}" /></div>
+                  <div class="field"><label>Price (₹)</label><input id="sPrice" type="number" value="${service?.price||0}" /></div>
+                </div>
+                <div class="row2">
+                  <div class="field"><label>Duration (min)</label><input id="sDur" type="number" value="${service?.duration||60}" /></div>
+                  <div class="field"><label>Short Description</label><input id="sDesc" value="${htmlEscape(service?.desc||"")}" /></div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap">
+                  <button class="btn primary" id="sSave" type="button">${isEdit ? "Save Changes" : "Add Service"}</button>
+                  <button class="btn ghost" id="sCancel" type="button">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(m);
+
+        const close = ()=> m.remove();
+        m.addEventListener("click",(e)=>{ if (e.target===m) close(); });
+        m.querySelector(".x").onclick = close;
+        $("#sCancel", m).onclick = close;
+
+        $("#sSave", m).onclick = ()=>{
+          const name = $("#sName", m).value.trim();
+          const price = Number($("#sPrice", m).value || 0);
+          const duration = Number($("#sDur", m).value || 0);
+          const desc = $("#sDesc", m).value.trim();
+          if (!name) return toast("Service name required.");
+          if (price <= 0) return toast("Price must be > 0.");
+          if (duration <= 0) return toast("Duration must be > 0.");
+
+          withState(st=>{
+            if (isEdit){
+              const x = st.services.find(v=>v.id===service.id);
+              if (x){
+                x.name = name; x.price = price; x.duration = duration; x.desc = desc;
+              }
+            } else {
+              st.services.push({id: uid("svc"), name, desc, price, duration});
+            }
+          });
+          toast(isEdit ? "Service updated." : "Service added.");
+          close();
+          rer();
+        };
+      }
+
+      $("#svcAdd").onclick = ()=> openServiceEditor(null);
+
+      wrap.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const id = btn.dataset.id;
+        const svc = (STATE.services||[]).find(s=>s.id===id);
+        if (!svc) return;
+
+        if (act==="edit"){
+          openServiceEditor(svc);
+          return;
+        }
+        if (act==="del"){
+          if (!confirm("Delete this service?")) return;
+          withState(st=>{
+            st.services = st.services.filter(s=>s.id!==id);
+          });
+          toast("Service deleted.");
+          rer();
+          return;
+        }
+      });
+
+      rer();
+    }
+
+    function renderAdminStylists(){
+      const view = $("#adminView");
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Stylists</h3>
+          <div class="note" style="margin-top:8px">Add/edit stylist information (this was missing earlier — now included).</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+            <button class="btn primary" id="styAdd" type="button">Add Stylist</button>
+          </div>
+          <div style="margin-top:12px; overflow:auto" id="styTableWrap"></div>
+        </div>
+      `;
+
+      const wrap = $("#styTableWrap");
+
+      const rer = ()=>{
+        const rows = (STATE.stylists||[]).map(s=>`
+          <tr>
+            <td><b>${htmlEscape(s.name)}</b><div class="note">${htmlEscape(s.role||"")} • ${htmlEscape(s.exp||"")}</div></td>
+            <td><div class="note">${htmlEscape(s.specialties||"")}</div></td>
+            <td>${s.photo ? `<img src="${s.photo}" alt="" style="width:56px;height:56px;border-radius:16px;object-fit:cover;border:1px solid rgba(0,0,0,.08)"/>` : `<span class="note">No photo</span>`}</td>
+            <td>
+              <div class="actions">
+                <button class="mini" data-act="edit" data-id="${s.id}">Edit</button>
+                <button class="mini danger" data-act="del" data-id="${s.id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+
+        wrap.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Stylist</th><th>Specialties</th><th>Photo</th><th>Actions</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="4" class="note">No stylists yet. Add one.</td></tr>`}</tbody>
+          </table>
+        `;
+      };
+
+      function openStylistEditor(sty){
+        const isEdit = !!sty;
+        const m = document.createElement("div");
+        m.className = "modal show";
+        m.innerHTML = `
+          <div class="modal-card" style="width:min(920px,96vw)">
+            <div class="modal-head">
+              <b>${isEdit ? "Edit Stylist" : "Add Stylist"}</b>
+              <button class="x" type="button" aria-label="Close">
+                <span class="i xl" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+                </span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="form">
+                <div class="row2">
+                  <div class="field"><label>Name</label><input id="stName" value="${htmlEscape(sty?.name||"")}" /></div>
+                  <div class="field"><label>Role</label><input id="stRole" value="${htmlEscape(sty?.role||"")}" placeholder="e.g. Senior Stylist" /></div>
+                </div>
+                <div class="row2">
+                  <div class="field"><label>Experience</label><input id="stExp" value="${htmlEscape(sty?.exp||"")}" placeholder="e.g. 6+ years" /></div>
+                  <div class="field"><label>Specialties</label><input id="stSpec" value="${htmlEscape(sty?.specialties||"")}" placeholder="e.g. Haircut • Styling" /></div>
+                </div>
+
+                <div class="field">
+                  <label>Photo (optional)</label>
+                  <input id="stPhoto" type="file" accept="image/*" />
+                  <div class="note">Image is stored in LocalStorage as a Data URL. Keep it moderately sized.</div>
+                  <div id="stPreview" style="margin-top:10px">
+                    ${sty?.photo ? `<img src="${sty.photo}" alt="" style="width:140px;height:140px;border-radius:22px;object-fit:cover;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 45px rgba(74,16,32,.12)"/>` : ""}
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap">
+                  <button class="btn primary" id="stSave" type="button">${isEdit ? "Save Changes" : "Add Stylist"}</button>
+                  <button class="btn ghost" id="stCancel" type="button">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(m);
+
+        const close = ()=> m.remove();
+        m.addEventListener("click",(e)=>{ if (e.target===m) close(); });
+        m.querySelector(".x").onclick = close;
+        $("#stCancel", m).onclick = close;
+
+        let photoData = sty?.photo || "";
+
+        $("#stPhoto", m).addEventListener("change", async (e)=>{
+          const f = e.target.files?.[0];
+          if (!f) return;
+          photoData = await fileToDataURL(f);
+          $("#stPreview", m).innerHTML = `<img src="${photoData}" alt="" style="width:140px;height:140px;border-radius:22px;object-fit:cover;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 45px rgba(74,16,32,.12)"/>`;
+        });
+
+        $("#stSave", m).onclick = ()=>{
+          const name = $("#stName", m).value.trim();
+          if (!name) return toast("Stylist name required.");
+          const role = $("#stRole", m).value.trim();
+          const exp = $("#stExp", m).value.trim();
+          const specialties = $("#stSpec", m).value.trim();
+
+          withState(st=>{
+            if (isEdit){
+              const x = st.stylists.find(v=>v.id===sty.id);
+              if (x){
+                x.name = name; x.role = role; x.exp = exp; x.specialties = specialties; x.photo = photoData;
+              }
+            } else {
+              st.stylists.push({id: uid("sty"), name, role, exp, specialties, photo: photoData});
+            }
+          });
+
+          toast(isEdit ? "Stylist updated." : "Stylist added.");
+          close();
+          rer();
+        };
+      }
+
+      $("#styAdd").onclick = ()=> openStylistEditor(null);
+
+      wrap.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const id = btn.dataset.id;
+        const sty = (STATE.stylists||[]).find(s=>s.id===id);
+        if (!sty) return;
+        if (act==="edit") return openStylistEditor(sty);
+        if (act==="del"){
+          if (!confirm("Delete this stylist?")) return;
+          withState(st=>{ st.stylists = st.stylists.filter(x=>x.id!==id); });
+          toast("Stylist deleted.");
+          rer();
+        }
+      });
+
+      rer();
+    }
+
+    function renderAdminGallery(){
+      const view = $("#adminView");
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Gallery</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center">
+            <div class="field" style="margin:0">
+              <label>Upload Images</label>
+              <input id="galUpload" type="file" accept="image/*" multiple />
+            </div>
+          </div>
+          <div class="note" style="margin-top:8px">Click delete to remove items. Images are stored in LocalStorage; keep file sizes reasonable.</div>
+          <div style="margin-top:12px; overflow:auto" id="galTableWrap"></div>
+        </div>
+      `;
+      const wrap = $("#galTableWrap");
+
+      const rer = ()=>{
+        const rows = (STATE.gallery||[]).map(g=>`
+          <tr>
+            <td><b>${htmlEscape(g.title||"")}</b><div class="note">ID: ${htmlEscape(g.id)}</div></td>
+            <td><img src="${g.img}" alt="" style="width:80px;height:80px;border-radius:18px;object-fit:cover;border:1px solid rgba(0,0,0,.08)"/></td>
+            <td><button class="mini danger" data-id="${g.id}">Delete</button></td>
+          </tr>
+        `).join("");
+        wrap.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Title</th><th>Preview</th><th>Action</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="3" class="note">No gallery images.</td></tr>`}</tbody>
+          </table>
+        `;
+      };
+
+      $("#galUpload").addEventListener("change", async (e)=>{
+        const files = Array.from(e.target.files||[]);
+        if (!files.length) return;
+        const items = [];
+        for (const f of files){
+          const data = await fileToDataURL(f);
+          items.push({id: uid("gal"), title: f.name.replace(/\.[^.]+$/,""), img: data});
+        }
+        withState(st=>{ st.gallery.unshift(...items); });
+        toast("Gallery updated.");
+        e.target.value = "";
+        rer();
+      });
+
+      wrap.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button.mini.danger");
+        if (!btn) return;
+        const id = btn.dataset.id;
+        if (!confirm("Delete this image?")) return;
+        withState(st=>{ st.gallery = st.gallery.filter(x=>x.id!==id); });
+        toast("Deleted.");
+        rer();
+      });
+
+      rer();
+    }
+
+    function renderAdminPromos(){
+      const view = $("#adminView");
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Promotions / Advertisements</h3>
+          <div class="note" style="margin-top:8px">Upload promotional banners, reorder them, and they will rotate on the homepage slider.</div>
+
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:end">
+            <div class="field" style="margin:0">
+              <label>Upload Banner Image</label>
+              <input id="proImg" type="file" accept="image/*" />
+            </div>
+            <div class="field" style="margin:0; min-width: 220px">
+              <label>Tag</label>
+              <input id="proTag" placeholder="e.g. Festival" />
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width: 240px">
+              <label>Title</label>
+              <input id="proTitle" placeholder="Banner title" />
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width: 240px">
+              <label>Subtitle</label>
+              <input id="proSub" placeholder="Banner subtitle" />
+            </div>
+            <button class="btn primary" id="proAdd" type="button">Add Banner</button>
+          </div>
+
+          <div style="margin-top:12px; overflow:auto" id="proTableWrap"></div>
+        </div>
+      `;
+
+      const wrap = $("#proTableWrap");
+      let tempImg = "";
+
+      $("#proImg").addEventListener("change", async (e)=>{
+        const f = e.target.files?.[0];
+        if (!f) return;
+        tempImg = await fileToDataURL(f);
+        toast("Banner image loaded.");
+      });
+
+      const rer = ()=>{
+        const rows = (STATE.promos||[]).map((p, idx)=>`
+          <tr>
+            <td><b>${htmlEscape(p.tag||"")}</b><div class="note">${htmlEscape(p.title||"")}</div><div class="note">${htmlEscape(p.subtitle||"")}</div></td>
+            <td><img src="${p.img}" alt="" style="width:120px;height:70px;border-radius:16px;object-fit:cover;border:1px solid rgba(0,0,0,.08)"/></td>
+            <td>
+              <div class="actions">
+                <button class="mini" data-act="up" data-id="${p.id}">Up</button>
+                <button class="mini" data-act="down" data-id="${p.id}">Down</button>
+                <button class="mini danger" data-act="del" data-id="${p.id}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+
+        wrap.innerHTML = `
+          <table class="table">
+            <thead><tr><th>Text</th><th>Image</th><th>Actions</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="3" class="note">No promos.</td></tr>`}</tbody>
+          </table>
+        `;
+      };
+
+      $("#proAdd").onclick = ()=>{
+        const tag = $("#proTag").value.trim() || "Offer";
+        const title = $("#proTitle").value.trim();
+        const subtitle = $("#proSub").value.trim();
+        if (!title) return toast("Title required.");
+        if (!tempImg) return toast("Please upload a banner image.");
+        withState(st=>{
+          st.promos.unshift({id: uid("pro"), tag, title, subtitle, img: tempImg});
+        });
+        $("#proTag").value = ""; $("#proTitle").value = ""; $("#proSub").value = ""; $("#proImg").value = "";
+        tempImg = "";
+        toast("Banner added.");
+        rer();
+      };
+
+      wrap.addEventListener("click", (e)=>{
+        const btn = e.target.closest("button[data-act]");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const id = btn.dataset.id;
+        const idx = (STATE.promos||[]).findIndex(p=>p.id===id);
+        if (idx < 0) return;
+
+        if (act==="del"){
+          if (!confirm("Delete this banner?")) return;
+          withState(st=>{ st.promos = st.promos.filter(p=>p.id!==id); });
+          toast("Banner deleted.");
+          rer();
+          return;
+        }
+        if (act==="up" && idx>0){
+          withState(st=>{
+            const a = st.promos;
+            [a[idx-1], a[idx]] = [a[idx], a[idx-1]];
+          });
+          rer(); return;
+        }
+        if (act==="down" && idx < (STATE.promos.length-1)){
+          withState(st=>{
+            const a = st.promos;
+            [a[idx+1], a[idx]] = [a[idx], a[idx+1]];
+          });
+          rer(); return;
+        }
+      });
+
+      rer();
+    }
+
+    function renderAdminAvailability(){
+      const view = $("#adminView");
+      const slots = STATE.availability.slots || [];
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Availability</h3>
+          <div class="note" style="margin-top:8px">Block any date/time, or edit the standard slot list.</div>
+
+          <div class="grid cols-3" style="margin-top:12px; grid-template-columns: 1fr 1fr; gap: 14px">
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">Time Slots</h3>
+              <div class="note" style="margin-top:6px">Comma-separated slot labels (e.g. 10:00 AM).</div>
+              <div class="field" style="margin-top:10px">
+                <label for="slotList">Slots</label>
+                <textarea id="slotList" rows="4" style="resize:vertical">${htmlEscape(slots.join(", "))}</textarea>
+              </div>
+              <button class="btn primary" id="saveSlots" type="button">Save Slots</button>
+            </div>
+
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">Block Date (Salon Closed)</h3>
+              <div class="row2" style="margin-top:10px">
+                <div class="field">
+                  <label for="blockDate">Date</label>
+                  <input id="blockDate" type="date" min="${todayStr()}" />
+                </div>
+                <div class="field">
+                  <label>&nbsp;</label>
+                  <button class="btn danger" id="addBlockedDate" type="button">Block Date</button>
+                </div>
+              </div>
+              <div class="note">Blocked dates: customers cannot book any slot.</div>
+              <div id="blockedDatesList" style="margin-top:10px"></div>
+            </div>
+          </div>
+
+          <div class="panel" style="box-shadow:none; margin-top:14px">
+            <h3 style="font-size:16px">Block Specific Time Slots</h3>
+            <div class="row2" style="margin-top:10px">
+              <div class="field">
+                <label for="blockSlotDate">Select Date</label>
+                <input id="blockSlotDate" type="date" min="${todayStr()}" />
+              </div>
+              <div class="field">
+                <label>Choose Slots to Block</label>
+                <div class="slots" id="adminBlockSlots"></div>
+              </div>
+            </div>
+            <div class="note" style="margin-top:8px">Tap slots to toggle blocked/unblocked for the selected date.</div>
+          </div>
+        </div>
+      `;
+
+      $("#saveSlots").onclick = ()=>{
+        const raw = $("#slotList").value.trim();
+        if (!raw) return toast("Slot list cannot be empty.");
+        const arr = raw.split(",").map(x=>x.trim()).filter(Boolean);
+        if (!arr.length) return toast("Slot list invalid.");
+        withState(st=>{ st.availability.slots = arr; });
+        toast("Slots updated.");
+      };
+
+      $("#addBlockedDate").onclick = ()=>{
+        const d = $("#blockDate").value;
+        if (!d) return toast("Select a date.");
+        withState(st=>{
+          st.availability.blockedDates = st.availability.blockedDates || [];
+          if (!st.availability.blockedDates.includes(d)){
+            st.availability.blockedDates.push(d);
+          }
+          // also clear blocked slots to avoid confusion
+          st.availability.blockedSlots[d] = [];
+        });
+        toast("Date blocked.");
+        renderAdminView();
+      };
+
+      const listWrap = $("#blockedDatesList");
+      const blocked = (STATE.availability.blockedDates||[]).slice().sort();
+      listWrap.innerHTML = blocked.length
+        ? blocked.map(d=>`
+            <div class="mini-row" style="margin-bottom:10px">
+              <div><b>${htmlEscape(d)}</b><div class="note">Closed</div></div>
+              <button class="mini danger" data-del="${d}">Unblock</button>
+            </div>
+          `).join("")
+        : `<div class="note">No blocked dates.</div>`;
+
+      listWrap.addEventListener("click",(e)=>{
+        const btn = e.target.closest("button[data-del]");
+        if (!btn) return;
+        const d = btn.dataset.del;
+        withState(st=>{
+          st.availability.blockedDates = (st.availability.blockedDates||[]).filter(x=>x!==d);
+        });
+        toast("Date unblocked.");
+        renderAdminView();
+      });
+
+      const blockDate = $("#blockSlotDate");
+      const slotsWrap = $("#adminBlockSlots");
+
+      const renderBlockSlots = ()=>{
+        const d = blockDate.value;
+        slotsWrap.innerHTML = "";
+        if (!d){
+          slotsWrap.innerHTML = `<div class="note">Select a date first.</div>`;
+          return;
+        }
+        const baseSlots = STATE.availability.slots || [];
+        const blockedSlots = STATE.availability.blockedSlots?.[d] || [];
+        baseSlots.forEach(s=>{
+          const blocked = blockedSlots.includes(s);
+          const el = document.createElement("div");
+          el.className = "slot" + (blocked ? " selected" : "");
+          el.textContent = s;
+          el.title = blocked ? "Blocked" : "Available";
+          el.addEventListener("click", ()=>{
+            withState(st=>{
+              st.availability.blockedSlots[d] = st.availability.blockedSlots[d] || [];
+              const arr = st.availability.blockedSlots[d];
+              if (arr.includes(s)){
+                st.availability.blockedSlots[d] = arr.filter(x=>x!==s);
+              } else {
+                arr.push(s);
+              }
+            });
+            renderBlockSlots();
+            toast("Updated blocked slots.");
+          });
+          slotsWrap.appendChild(el);
+        });
+      };
+
+      blockDate.addEventListener("input", renderBlockSlots);
+      renderBlockSlots();
+    }
+
+    function renderAdminBusiness(){
+      const view = $("#adminView");
+      const b = STATE.business;
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Business Info</h3>
+          <div class="note" style="margin-top:8px">Edit salon name, address, contact info, hours, map embed, social links, and hero image.</div>
+
+          <div class="grid cols-3" style="margin-top:12px; grid-template-columns: 1fr 1fr; gap: 14px">
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">Core Details</h3>
+              <div class="form">
+                <div class="row2">
+                  <div class="field"><label>Salon Name</label><input id="bizName" value="${htmlEscape(b.salonName)}" /></div>
+                  <div class="field"><label>Tagline</label><input id="bizTag" value="${htmlEscape(b.tagline)}" /></div>
+                </div>
+                <div class="field"><label>Description</label><textarea id="bizDesc" rows="3" style="resize:vertical">${htmlEscape(b.description||"")}</textarea></div>
+                <div class="field"><label>Address</label><input id="bizAddr" value="${htmlEscape(b.address)}" /></div>
+                <div class="row2">
+                  <div class="field"><label>Phone</label><input id="bizPhone" value="${htmlEscape(b.phone)}" /></div>
+                  <div class="field"><label>Email</label><input id="bizEmail" value="${htmlEscape(b.email)}" /></div>
+                </div>
+                <div class="field"><label>Hours</label><input id="bizHours" value="${htmlEscape(b.hours)}" /></div>
+                <button class="btn primary" id="bizSave" type="button">Save Business Info</button>
+              </div>
+            </div>
+
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">Social & Map</h3>
+              <div class="form">
+                <div class="field"><label>Instagram URL</label><input id="bizInsta" value="${htmlEscape(b.social.instagram||"")}" /></div>
+                <div class="field"><label>Facebook URL</label><input id="bizFb" value="${htmlEscape(b.social.facebook||"")}" /></div>
+                <div class="field"><label>Google Maps Embed URL</label><input id="bizMap" value="${htmlEscape(b.mapEmbedUrl||"")}" placeholder="Paste iframe src URL here" /></div>
+
+                <div class="field">
+                  <label>Hero Background Image (optional)</label>
+                  <input id="heroUpload" type="file" accept="image/*" />
+                  <div id="heroPreview" style="margin-top:10px">${b.heroImage ? `<img src="${b.heroImage}" alt="" style="width:100%;max-width:360px;border-radius:22px;border:1px solid rgba(0,0,0,.08);box-shadow:0 20px 55px rgba(74,16,32,.12)"/>` : `<div class="note">No hero image uploaded.</div>`}</div>
+                </div>
+
+                <button class="btn primary" id="bizSave2" type="button">Save Social/Map</button>
+                <button class="btn danger" id="heroClear" type="button">Remove Hero Image</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      let heroData = b.heroImage || "";
+      $("#heroUpload").addEventListener("change", async (e)=>{
+        const f = e.target.files?.[0];
+        if (!f) return;
+        heroData = await fileToDataURL(f);
+        $("#heroPreview").innerHTML = `<img src="${heroData}" alt="" style="width:100%;max-width:360px;border-radius:22px;border:1px solid rgba(0,0,0,.08);box-shadow:0 20px 55px rgba(74,16,32,.12)"/>`;
+        toast("Hero image ready. Click Save.");
+      });
+
+      const save = ()=>{
+        withState(st=>{
+          const b = st.business;
+          b.salonName = $("#bizName").value.trim() || b.salonName;
+          b.tagline = $("#bizTag").value.trim() || b.tagline;
+          b.description = $("#bizDesc").value.trim();
+          b.address = $("#bizAddr").value.trim();
+          b.phone = $("#bizPhone").value.trim();
+          b.email = $("#bizEmail").value.trim();
+          b.hours = $("#bizHours").value.trim();
+
+          b.social.instagram = $("#bizInsta").value.trim();
+          b.social.facebook = $("#bizFb").value.trim();
+          b.mapEmbedUrl = $("#bizMap").value.trim();
+
+          b.heroImage = heroData || "";
+        });
+        toast("Business info saved.");
+      };
+      $("#bizSave").onclick = save;
+      $("#bizSave2").onclick = save;
+
+      $("#heroClear").onclick = ()=>{
+        heroData = "";
+        withState(st=>{ st.business.heroImage = ""; });
+        toast("Hero image removed.");
+        renderAdminView();
+      };
+    }
+
+    function renderAdminPayments(){
+      const view = $("#adminView");
+      const p = STATE.payments;
+      const o = STATE.owner;
+      view.innerHTML = `
+        <div class="panel">
+          <h3>Payments & Owner Notifications</h3>
+          <div class="note" style="margin-top:8px">
+            This website is a single offline HTML file. It can open UPI apps via deep links and show QR codes, but it cannot automatically verify bank receipt.
+            For real verification, you need a payment gateway with server-side verification.
+          </div>
+
+          <div class="grid cols-3" style="margin-top:12px; grid-template-columns: 1fr 1fr; gap: 14px">
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">Owner WhatsApp</h3>
+              <div class="note" style="margin-top:6px">Editable here. Customer booking modal will notify this number.</div>
+              <div class="form" style="margin-top:10px">
+                <div class="field"><label>WhatsApp Number</label><input id="ownWa" value="${htmlEscape(o.whatsapp)}" placeholder="+91 7467977770" /></div>
+                <button class="btn primary" id="ownWaSave" type="button">Save Owner WhatsApp</button>
+              </div>
+
+              <div class="note" style="margin-top:10px">
+                Mobile notifications: true automatic notification to your phone needs a backend or WhatsApp Business API.
+                In this single-file mode, we do:
+                1) open WhatsApp with a pre-filled owner message, and
+                2) optional browser notifications on the same device where admin is open.
+              </div>
+            </div>
+
+            <div class="panel" style="box-shadow:none">
+              <h3 style="font-size:16px">UPI (Recommended)</h3>
+              <div class="form" style="margin-top:10px">
+                <div class="field"><label>UPI ID</label><input id="upiId" value="${htmlEscape(p.upiId)}" placeholder="yourupi@bank" /></div>
+                <div class="field">
+                  <label>Upload UPI QR Code (optional)</label>
+                  <input id="upiQr" type="file" accept="image/*" />
+                  <div id="upiQrPreview" style="margin-top:10px">
+                    ${p.upiQr ? `<img src="${p.upiQr}" alt="" style="width:180px;height:180px;border-radius:22px;object-fit:cover;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 45px rgba(74,16,32,.12)"/>` : `<div class="note">No UPI QR uploaded.</div>`}
+                  </div>
+                </div>
+                <button class="btn primary" id="upiSave" type="button">Save UPI Settings</button>
+                <button class="btn danger" id="upiClear" type="button">Remove UPI QR</button>
+              </div>
+
+              <div class="panel" style="margin-top:12px; box-shadow:none; border:1px solid rgba(0,0,0,.06); background:rgba(255,255,255,.85)">
+                <b style="display:block;font-size:13px">How UPI linking works (real)</b>
+                <div class="note" style="margin-top:6px">
+                  When customer taps “Pay in UPI App”, we open a UPI deep-link like:<br/>
+                  <span class="hint">upi://pay?pa=UPIID&pn=NAME&am=AMOUNT&cu=INR&tn=NOTE</span><br/>
+                  This launches their installed UPI app (PhonePe/GPay/Paytm etc.) and the money goes directly to your UPI ID.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:14px; box-shadow:none">
+            <h3 style="font-size:16px">Razorpay (Optional)</h3>
+            <div class="note" style="margin-top:6px">
+              For a single HTML file, the most reliable “real” method without building a server is: create a <b>Razorpay Payment Link</b> in your Razorpay dashboard and paste it here.
+              Customers will pay on Razorpay’s hosted page; settlement goes to your linked bank account in Razorpay.
+            </div>
+            <div class="row2" style="margin-top:10px">
+              <div class="field">
+                <label>Razorpay Payment Link (Hosted)</label>
+                <input id="rzpLink" value="${htmlEscape(p.razorpayPaymentLink||"")}" placeholder="https://rzp.io/i/..." />
+              </div>
+              <div class="field">
+                <label>Razorpay Key ID (Optional)</label>
+                <input id="rzpKey" value="${htmlEscape(p.razorpayKeyId||"")}" placeholder="rzp_test_..." />
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn primary" id="rzpSave" type="button">Save Razorpay Settings</button>
+            </div>
+
+            <div class="note" style="margin-top:10px">
+              Bank account linking: you link your bank account inside Razorpay/UPI provider app settings (outside this website).
+              This website cannot connect to your bank directly without a regulated payment gateway.
+            </div>
+          </div>
+        </div>
+      `;
+
+      let qrData = p.upiQr || "";
+
+      $("#upiQr").addEventListener("change", async (e)=>{
+        const f = e.target.files?.[0];
+        if (!f) return;
+        qrData = await fileToDataURL(f);
+        $("#upiQrPreview").innerHTML = `<img src="${qrData}" alt="" style="width:180px;height:180px;border-radius:22px;object-fit:cover;border:1px solid rgba(0,0,0,.08);box-shadow:0 18px 45px rgba(74,16,32,.12)"/>`;
+        toast("UPI QR ready. Click Save.");
+      });
+
+      $("#ownWaSave").onclick = ()=>{
+        const v = $("#ownWa").value.trim();
+        if (!v) return toast("WhatsApp number required.");
+        withState(st=>{ st.owner.whatsapp = v; });
+        toast("Owner WhatsApp saved.");
+      };
+
+      $("#upiSave").onclick = ()=>{
+        const upiId = $("#upiId").value.trim();
+        if (!upiId) return toast("UPI ID required.");
+        withState(st=>{
+          st.payments.upiId = upiId;
+          st.payments.upiQr = qrData || "";
+        });
+        toast("UPI settings saved.");
+      };
+
+      $("#upiClear").onclick = ()=>{
+        qrData = "";
+        withState(st=>{ st.payments.upiQr = ""; });
+        toast("UPI QR removed.");
+        renderAdminView();
+      };
+
+      $("#rzpSave").onclick = ()=>{
+        withState(st=>{
+          st.payments.razorpayPaymentLink = $("#rzpLink").value.trim();
+          st.payments.razorpayKeyId = $("#rzpKey").value.trim();
+        });
+        toast("Razorpay settings saved.");
+      };
+    }
+
+    function renderAdminView(){
+      renderAdminKPIs();
+      const t = adminTab;
+      if (t==="overview") return renderAdminOverview();
+      if (t==="bookings") return renderAdminBookings();
+      if (t==="services") return renderAdminServices();
+      if (t==="stylists") return renderAdminStylists();
+      if (t==="gallery") return renderAdminGallery();
+      if (t==="promos") return renderAdminPromos();
+      if (t==="availability") return renderAdminAvailability();
+      if (t==="business") return renderAdminBusiness();
+      if (t==="payments") return renderAdminPayments();
+    }
+
+    function openAdminDashboard(){
+      $("#customerApp").style.display = "none";
+      $("#adminShell").classList.add("show");
+      renderAdminTabs();
+      renderAdminView();
+      // Scroll to top
+      window.scrollTo({top:0, behavior:"instant"});
+    }
+
+    function closeAdminDashboard(){
+      $("#adminShell").classList.remove("show");
+      $("#customerApp").style.display = "block";
+      window.scrollTo({top:0, behavior:"instant"});
+    }
+
+    /* =========================
+       PROMO SLIDER LOGIC
+    ========================== */
+    let promoIndex = 0;
+    let promoTimer = null;
+
+    function setPromoIndex(i, silent=false){
+      const promos = STATE.promos || [];
+      if (!promos.length) return;
+      promoIndex = (i + promos.length) % promos.length;
+      $("#slides").style.transform = `translateX(-${promoIndex * 100}%)`;
+
+      $$("#promoDots .dot").forEach((d, idx)=> d.classList.toggle("active", idx===promoIndex));
+      if (!silent) restartPromoTimer();
+    }
+    function restartPromoTimer(){
+      clearInterval(promoTimer);
+      promoTimer = setInterval(()=> setPromoIndex(promoIndex+1, true), 5200);
+    }
+
+    /* =========================
+       REVEAL ON SCROLL
+    ========================== */
+    function setupReveal(){
+      const els = $$(".reveal");
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(en=>{
+          if (en.isIntersecting){
+            en.target.classList.add("in");
+            io.unobserve(en.target);
+          }
+        });
+      }, {threshold: 0.12});
+      els.forEach(el=> io.observe(el));
+    }
+
+    /* =========================
+       CUSTOMER NAV SCROLL
+    ========================== */
+    function setupSmoothScroll(){
+      document.addEventListener("click", (e)=>{
+        const a = e.target.closest("a[data-scroll]");
+        if (!a) return;
+        const href = a.getAttribute("href") || "";
+        if (!href.startsWith("#")) return;
+        e.preventDefault();
+        const el = $(href);
+        if (!el) return;
+        el.scrollIntoView({behavior:"smooth", block:"start"});
+      });
+    }
+
+    /* =========================
+       MAIN RENDER
+    ========================== */
+    function renderAll(){
+      applyBusinessToUI();
+      renderPromos();
+      renderServices();
+      renderStylists();
+      renderGallery();
+      setDateInputToToday();
+      renderSlots();
+      renderPayTabs();
+      renderSummary(); // also renders pay details
+      renderAdminKPIs();
+      // refresh admin view if open
+      if ($("#adminShell").classList.contains("show")){
+        renderAdminTabs();
+        renderAdminView();
+      }
+    }
+
+    /* =========================
+       EVENT WIRING
+    ========================== */
+    function wireCustomerEvents(){
+      // Brand click to home instantly
+      $("#brandHome").addEventListener("click", ()=>{
+        window.scrollTo({top:0, behavior:"instant"});
+        // also ensure hash doesn't get stuck
+        history.replaceState(null, "", "#home");
+      });
+
+      // Booking CTA
+      const goBooking = ()=>{
+        $("#booking").scrollIntoView({behavior:"smooth", block:"start"});
+        // ensure date is current
+        setDateInputToToday();
+        renderSlots();
+      };
+      $("#heroBookBtn").onclick = goBooking;
+      $("#heroBookBtnTop").onclick = goBooking;
+
+      // Date input
+      $("#dateInput").addEventListener("input", (e)=>{
+        selection.date = e.target.value;
+        selection.timeSlot = "";
+        renderSlots();
+      });
+
+      // Booking buttons
+      $("#confirmBookingBtn").onclick = confirmBooking;
+
+      $("#clearSelectionBtn").onclick = ()=>{
+        selection.serviceIds.clear();
+        selection.timeSlot = "";
+        selection.utr = "";
+        $("#nameInput").value = "";
+        $("#phoneInput").value = "";
+        $("#emailInput").value = "";
+        renderServices();
+        renderSummary();
+        renderSlots();
+        toast("Cleared selection.");
+      };
+
+      // Modals close
+      $("#closeGalleryModal").onclick = ()=> hideModal("#galleryModal");
+      $("#closeConfirmModal").onclick = ()=> hideModal("#confirmModal");
+
+      // Admin open
+      const openAdmin = ()=>{
+        // Reset panels
+        $("#changePasswordPanel").style.display = "none";
+        $("#forgotPasswordPanel").style.display = "none";
+        $("#adminPass").value = "";
+        renderOTPPanel();
+        showModal("#adminModal");
+      };
+      $("#openAdminFromFooter").onclick = openAdmin;
+      $("#openAdminFromNav").onclick = openAdmin;
+      $("#closeAdminModal").onclick = ()=> hideModal("#adminModal");
+
+      // Login actions
+      $("#adminLoginBtn").onclick = adminLogin;
+
+      $("#openChangePassword").onclick = ()=>{
+        $("#changePasswordPanel").style.display = "block";
+        $("#forgotPasswordPanel").style.display = "none";
+      };
+      $("#cpCancel").onclick = ()=> $("#changePasswordPanel").style.display = "none";
+      $("#cpSave").onclick = changeAdminPassword;
+
+      $("#openForgotPassword").onclick = ()=>{
+        $("#forgotPasswordPanel").style.display = "block";
+        $("#changePasswordPanel").style.display = "none";
+        renderOTPPanel();
+      };
+      $("#otpCancel").onclick = ()=> $("#forgotPasswordPanel").style.display = "none";
+      $("#otpGenerate").onclick = generateOTP;
+      $("#otpSendWhatsApp").onclick = openOTPWhatsApp;
+      $("#otpResetBtn").onclick = otpResetPassword;
+
+      // Promo slider buttons
+      $("#promoPrev").onclick = ()=> setPromoIndex(promoIndex-1);
+      $("#promoNext").onclick = ()=> setPromoIndex(promoIndex+1);
+    }
+
+    function wireAdminEvents(){
+      $("#adminBackToSite").onclick = ()=>{
+        closeAdminDashboard();
+        window.scrollTo({top:0, behavior:"instant"});
+      };
+      $("#adminBrandHome").onclick = ()=>{
+        closeAdminDashboard();
+        window.scrollTo({top:0, behavior:"instant"});
+      };
+      $("#adminLogout").onclick = ()=>{
+        setAuthed(false);
+        closeAdminDashboard();
+        toast("Logged out.");
+      };
+      $("#adminExport").onclick = ()=>{
+        const data = {
+          exportedAt: nowISO(),
+          business: STATE.business,
+          bookings: STATE.bookings
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `daffodil_bookings_${todayStr()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast("Exported JSON.");
+      };
+    }
+
+    /* =========================
+       INITIALIZE
+    ========================== */
+    (async function init(){
+      // Load or seed
+      let st = loadState();
+      if (!st){
+        st = seedState();
+      }
+      STATE = st;
+      await ensureAdminPasswordInitialized(STATE);
+      localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
+
+      // Setup date defaults (must not be past)
+      selection.date = todayStr();
+
+      // Ensure bookedSlots stays consistent with bookings
+      // (fixes cases where bookings appeared but slots didn't update)
+      withState(st2=>{
+        st2.availability.bookedSlots = st2.availability.bookedSlots || {};
+        for (const b of (st2.bookings||[])){
+          if (b.status === "cancelled") continue;
+          st2.availability.bookedSlots[b.date] = st2.availability.bookedSlots[b.date] || [];
+          if (!st2.availability.bookedSlots[b.date].includes(b.time)){
+            st2.availability.bookedSlots[b.date].push(b.time);
+          }
+        }
+      });
+
+      wireCustomerEvents();
+      wireAdminEvents();
+      setupSmoothScroll();
+      setupReveal();
+
+      // Admin authed?
+      if (isAuthed()){
+        openAdminDashboard();
+      } else {
+        closeAdminDashboard();
+      }
+
+      renderAll();
+      restartPromoTimer();
+
+      // Loader off
+      $("#loaderTitle").textContent = (STATE.business?.salonName || "Daffodil") + " Salon";
+      setTimeout(()=> $("#loader").classList.add("hide"), 650);
+    })();
+  </script>
+</body>
+</html>
